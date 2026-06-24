@@ -12,9 +12,10 @@ import { todayISO, addDays, yearMonth } from './dates';
 import { applyTheme } from './theme';
 import { getConfig, listNotes, getNote, putNote } from './api';
 import type { UiConfig } from './types';
-import { createEditorState, type EditorState } from './editor/state';
+import { createEditorState, clampCursor, type EditorState } from './editor/state';
 import { handleKey, type KeyInput } from './editor/keymap';
 import type { AppEffect } from './editor/commands';
+import { extractTodos, windowDates, type TodoGroup } from './todos';
 
 function nowHHMM(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -27,6 +28,7 @@ class AppStore {
   config = $state<UiConfig | null>(null);
   now = $state<Date>(new Date());
   calendar = $state<{ year: number; month: number }>(yearMonth(todayISO()));
+  todoGroups = $state<TodoGroup[]>([]);
 
   private sharedRegister: string[] = [];
   private lastSaved = '';
@@ -65,6 +67,7 @@ class AppStore {
       this.editor = createEditorState(content.split('\n'), this.sharedRegister);
       this.calendar = yearMonth(date);
       await this.refreshNotesList();
+      await this.refreshTodos();
     } catch (e) {
       console.error(e);
     }
@@ -105,6 +108,7 @@ class AppStore {
     try {
       await putNote(this.activeDate, content);
       this.lastSaved = content;
+      await this.refreshTodos();
     } catch (e) {
       this.editor = { ...this.editor, message: 'Save failed' };
       console.error(e);
@@ -169,6 +173,37 @@ class AppStore {
     await this.flush();
     this.tabsState = closeTab(this.tabsState, index, todayISO());
     await this.loadActive();
+  }
+
+  async refreshTodos(): Promise<void> {
+    const active = this.activeDate;
+    const existing = new Set(this.notesWithFiles);
+    const groups: TodoGroup[] = [];
+    for (const date of windowDates(active)) {
+      if (date !== active && !existing.has(date)) continue; // never materialize other days
+      try {
+        const content = await getNote(date);
+        const todos = extractTodos(content.split('\n'));
+        if (todos.length > 0) groups.push({ date, todos });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    this.todoGroups = groups;
+  }
+
+  jumpToLine(line: number): void {
+    const clamped = Math.max(0, Math.min(line, this.editor.lines.length - 1));
+    this.editor = clampCursor({ ...this.editor, cursor: { line: clamped, col: 0 } });
+  }
+
+  async goToDateAndLine(date: string, line: number): Promise<void> {
+    if (date === this.activeDate) {
+      this.jumpToLine(line);
+      return;
+    }
+    await this.goToDate(date);
+    this.jumpToLine(line);
   }
 
   prevMonth(): void {
