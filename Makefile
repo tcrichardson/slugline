@@ -1,4 +1,4 @@
-.PHONY: dev run test test-web fmt fmt-web build
+.PHONY: dev run test test-web fmt fmt-web build dev-web
 
 # Run the backend (serves the embedded SPA + API)
 run:
@@ -19,6 +19,9 @@ fmt:
 
 fmt-web:
 	cd web && npx prettier --write "src/**/*.{ts,svelte}"
+
+dev-web:
+	cd web && npm run dev
 
 # Production build: frontend bundle (Vite default outDir is web/dist) then release binary
 build:
