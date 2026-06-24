@@ -10,7 +10,7 @@ A single-user, local-first, keyboard-driven (vim-modal) daily notes app. Notes a
 - **Calendar sidebar** — dots on dates that have notes; click to open or create
 - **Agenda sidebar** — today's scheduled meetings and a 7-day to-do view
 - **Command line** — `:w`, `:goto`, `:today`, `:tab`, `:close`, `:theme`, `:meeting`, `:note`, `:section`, `:todo`, `:start`, `:end`, `:scheduled`, `:purpose`, `:topic`
-- **Themes** — built-in `light` (default) and `dark`; live-switch with `:theme dark`; partial color overrides via `config.toml`
+- **Themes** — built-in `light` (default) and `dark`; switch with `:theme dark` / `:theme light`, or just `:theme` to toggle. The choice is **saved to `config.toml`** (comment-preserving). Partial color overrides via `[ui.colors.<theme>]`.
 - **Offline fonts** — Roboto is bundled inside the binary; no network required
 
 ## Usage
@@ -195,9 +195,11 @@ edit_line_position = 0.35   # 0.0–1.0, fraction from top
 
 [ui.colors.dark]
 "--accent" = "#e0af68"
+"--rule" = "#2d3650"        # hairline under header / around the edit bar
+"--edit-bar-bg" = "#2a344c" # active-line band
 ```
 
-Config changes take effect on restart.
+Most config changes take effect on restart; the active theme is also written back to `config.toml` whenever you switch it in-app.
 
 ## Development
 
@@ -265,6 +267,7 @@ The Rust server exposes a minimal filesystem API (all other routes serve the SPA
 | `GET` | `/api/notes/{date}` | Read a note (materializes empty template if missing) |
 | `PUT` | `/api/notes/{date}` | Write a note (atomic) |
 | `GET` | `/api/config` | Read the UI-relevant config subset |
+| `PUT` | `/api/config/theme` | Persist the active theme to `config.toml` |
 
 Dates must be `YYYY-MM-DD`. Invalid dates and path-traversal attempts return 400.
 
