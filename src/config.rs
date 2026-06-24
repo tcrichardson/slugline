@@ -4,7 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use toml_edit;
+use toml_edit::{DocumentMut, Item, Value};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
@@ -140,33 +140,34 @@ pub fn update_theme(path: &Path, theme: &str) -> io::Result<()> {
     let existing = match fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
-            let s = toml::to_string_pretty(&Config::default())
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            fs::write(path, &s)?;
-            s
+            toml::to_string_pretty(&Config::default())
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
         }
         Err(e) => return Err(e),
     };
 
     let mut doc = existing
-        .parse::<toml_edit::DocumentMut>()
+        .parse::<DocumentMut>()
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-    // Preserve the inline comment suffix (e.g. `  # current theme`) on the value.
-    let existing_suffix = doc["ui"]["theme"]
-        .as_value()
+    // Preserve the inline comment suffix (e.g. `  # current theme`) on the value,
+    // but only if `[ui]` and `theme` already exist — avoids a panic on Item::None.
+    let existing_suffix = doc
+        .get("ui")
+        .and_then(|ui| ui.get("theme"))
+        .and_then(|item| item.as_value())
         .and_then(|v| v.decor().suffix())
         .and_then(|s| s.as_str())
         .map(|s| s.to_owned());
 
-    let mut new_val = toml_edit::Value::from(theme);
+    let mut new_val = Value::from(theme);
     if let Some(suffix) = existing_suffix {
         new_val.decor_mut().set_suffix(suffix);
     }
-    doc["ui"]["theme"] = toml_edit::Item::Value(new_val);
+    doc["ui"]["theme"] = Item::Value(new_val);
 
     fs::write(path, doc.to_string())
 }
@@ -262,5 +263,16 @@ mod tests {
         let path = dir.path().join("absent.toml");
         let ui = read_ui(&path);
         assert_eq!(ui.theme, "light");
+    }
+
+    #[test]
+    fn update_theme_no_panic_when_ui_section_absent() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        // File exists but has no [ui] section — previously would panic.
+        fs::write(&path, "[server]\nport = 9000\n").unwrap();
+        update_theme(&path, "dark").unwrap();
+        let cfg = load_or_create(&path).unwrap();
+        assert_eq!(cfg.ui.theme, "dark");
     }
 }
