@@ -120,7 +120,11 @@ Press `esc` from normal mode to edit the document directly at the cursor positio
 | Any character | Insert at cursor |
 | `Esc` | Return to normal mode |
 
+#### Edit Line
+The line that is to be impacted in either model should highlight be visible and should show the raw markup (the rest of the note should show pretty markup)
 
+- The defualt position of this edit line should be configurable and default to roughly halfway between the top and bottome of the note.  When the user navigates, the note moves not the edit line.
+- Only once the top or the bottom of the note is visible, THEN the edit bar will move toward the top and bottom.
 
 ### Global shortcuts
 
