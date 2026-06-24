@@ -59,8 +59,15 @@
 </div>
 
 <style>
-  .editor { flex: 1; min-width: 0; overflow-y: auto; padding: 1rem 1.5rem; line-height: 1.6; }
-  .line { white-space: pre-wrap; word-break: break-word; min-height: 1.6em; }
+  .editor { flex: 1; min-width: 0; overflow-y: auto; padding: 1rem 0; line-height: 1.6; }
+  .line {
+    white-space: pre-wrap; word-break: break-word; min-height: 1.6em;
+    padding: 0 1.5rem; border-block: 1px solid transparent;
+  }
+  .line.active {
+    background: var(--edit-bar-bg);
+    border-block-color: var(--rule);
+  }
   .line.active .raw { font-family: ui-monospace, 'SF Mono', monospace; }
   .cursor.normal { background: var(--cursor); color: var(--bg); }
   .cursor.insert { border-left: 2px solid var(--cursor); margin-left: -1px; }
