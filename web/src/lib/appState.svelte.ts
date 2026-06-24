@@ -193,8 +193,7 @@ class AppStore {
   }
 
   jumpToLine(line: number): void {
-    const clamped = Math.max(0, Math.min(line, this.editor.lines.length - 1));
-    this.editor = clampCursor({ ...this.editor, cursor: { line: clamped, col: 0 } });
+    this.editor = clampCursor({ ...this.editor, cursor: { line, col: 0 } });
   }
 
   async goToDateAndLine(date: string, line: number): Promise<void> {
