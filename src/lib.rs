@@ -5,3 +5,4 @@ pub mod store;
 pub mod config;
 pub mod cli;
 pub mod assets;
+pub mod app;
