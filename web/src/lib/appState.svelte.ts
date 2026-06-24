@@ -103,11 +103,17 @@ class AppStore {
     this.saveTimer = setTimeout(() => void this.flush(), 750);
   }
 
-  private async persistTheme(theme: string): Promise<void> {
+  private async persistTheme(target: string, previousTheme: string): Promise<void> {
     try {
-      await putTheme(theme);
+      await putTheme(target);
     } catch (e) {
       console.error(e);
+      // Roll back: restore the previous theme in config and DOM
+      if (this.config) {
+        this.config = { ...this.config, theme: previousTheme };
+        applyTheme(previousTheme, this.config.font, this.config.colors);
+        this.editor = { ...this.editor, message: `Theme: ${previousTheme}` };
+      }
       this.setError('Failed to save theme preference.');
     }
   }
@@ -156,11 +162,12 @@ class AppStore {
         return this.loadActive();
       case 'theme': {
         if (!this.config) return;
+        const previousTheme = this.config.theme;
         const target = effect.theme === '' ? nextTheme(this.config.theme) : effect.theme;
         this.config = { ...this.config, theme: target };
         applyTheme(target, this.config.font, this.config.colors);
         this.editor = { ...this.editor, message: `Theme: ${target}` };
-        await this.persistTheme(target);
+        await this.persistTheme(target, previousTheme);
         return;
       }
     }
