@@ -21,8 +21,11 @@
         return `<span class="meta"><span class="mk">${renderInline(c.metaKey ?? '')}</span> ${renderInline(
           c.text,
         )}</span>`;
-      case 'list':
-        return `<span class="li">• ${renderInline(c.text)}</span>`;
+      case 'list': {
+        const prefix = c.ordered ? `${c.listNumber}.` : '•';
+        const indent = (c.depth ?? 0) * 1.5;
+        return `<span class="li" style="padding-left:${indent}rem">${prefix} ${renderInline(c.text)}</span>`;
+      }
       default:
         return renderInline(c.text);
     }
@@ -68,6 +71,7 @@
   :global(.h4) { font-size: 1.05rem; color: var(--heading-4); }
   :global(.h5) { font-size: 1rem; color: var(--heading-5); }
   :global(.h6) { font-size: 0.95rem; color: var(--heading-6); }
+  :global(.li) { display: block; }
   :global(.task.done) { color: var(--todo-done); text-decoration: line-through; }
   :global(.meta) { color: var(--meta); font-size: 0.85em; }
   :global(.mk) { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-right: 0.25em; }

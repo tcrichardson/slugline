@@ -13,6 +13,143 @@ A single-user, local-first, keyboard-driven (vim-modal) daily notes app. Notes a
 - **Themes** — built-in `light` (default) and `dark`; live-switch with `:theme dark`; partial color overrides via `config.toml`
 - **Offline fonts** — Roboto is bundled inside the binary; no network required
 
+## Usage
+
+Slugline is a modal editor in the style of Vim. Keyboard input is interpreted differently depending on the current mode.
+
+### Modes
+
+| Mode | How to enter | How to exit |
+|------|-------------|-------------|
+| **Normal** | Default on open; `Escape` from Insert | — |
+| **Insert** | `i`, `a`, `A`, `o`, `O` | `Escape` |
+| **Command** | `:` from Normal | `Escape` to cancel, `Enter` to run |
+
+The cursor changes shape: a block in Normal mode, an I-beam in Insert mode.
+
+### Normal Mode
+
+Normal mode is for navigation and editing commands. Keystrokes are not inserted as text.
+
+#### Motions
+
+| Key | Action |
+|-----|--------|
+| `h` / `←` | Move left |
+| `l` / `→` | Move right |
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `w` | Next word start |
+| `b` | Previous word start |
+| `e` | Word end |
+| `0` | Line start |
+| `$` | Line end |
+| `gg` | First line |
+| `G` | Last line |
+
+#### Editing
+
+| Key | Action |
+|-----|--------|
+| `x` | Delete character under cursor |
+| `dd` | Delete current line (saved to register) |
+| `yy` | Yank (copy) current line to register |
+| `p` | Paste register below current line |
+| `P` | Paste register above current line |
+| `t` | Toggle task checkbox (`[ ]` ↔ `[x]`) |
+| `u` | Undo |
+| `Ctrl-r` | Redo |
+
+#### Entering Insert Mode
+
+| Key | Enters insert at… |
+|-----|-------------------|
+| `i` | Cursor position |
+| `a` | After cursor |
+| `A` | End of line |
+| `o` | New line below |
+| `O` | New line above |
+
+#### Tab & Day Navigation
+
+| Key | Action |
+|-----|--------|
+| `gt` | Next tab |
+| `gT` | Previous tab |
+| `[` | Previous day |
+| `]` | Next day |
+| `Ctrl-t` | Today |
+
+### Insert Mode
+
+Insert mode behaves like a standard text editor.
+
+| Key | Action |
+|-----|--------|
+| `Escape` | Return to Normal mode |
+| `Enter` | Insert newline (splits line at cursor) |
+| `Backspace` | Delete character before cursor; at column 0, merges with line above |
+| `Tab` | Insert 2 spaces |
+| `Ctrl-w` | Delete word before cursor |
+| `←` `→` `↑` `↓` | Move cursor |
+| any text character | Insert at cursor position |
+
+### Command Mode
+
+Press `:` in Normal mode to open the command line at the bottom of the screen. Type a command and press `Enter`, or press `Escape` to cancel.
+
+#### Navigation
+
+| Command | Description |
+|---------|-------------|
+| `:goto YYYY-MM-DD` | Open a specific date |
+| `:today` | Open today's note |
+| `:tab YYYY-MM-DD` | Open a date in a new tab |
+| `:close` | Close the active tab |
+
+#### File
+
+| Command | Description |
+|---------|-------------|
+| `:w` | Save the current note to disk |
+
+#### Content
+
+| Command | Description |
+|---------|-------------|
+| `:meeting <name>` | Append a `### <name>` block under `## Meetings` (creates section if absent) |
+| `:note <name>` | Append a `### <name>` block under `## Notes` (creates section if absent) |
+| `:todo <text>` | Append `- [ ] <text>` to `## To Do`; if inside a meeting block, tags it with the meeting name |
+| `:section <name>` | Insert a sub-heading one level deeper than the heading at the cursor |
+
+#### Meeting Metadata
+
+These commands must be run with the cursor inside a `### meeting` block.
+
+| Command | Description |
+|---------|-------------|
+| `:scheduled HH:MM` | Set the scheduled time for the meeting |
+| `:start` | Record the actual start time (uses the current clock time) |
+| `:end` | Record the actual end time (uses the current clock time) |
+| `:purpose <text>` | Set the meeting purpose |
+
+#### Note Metadata
+
+These commands must be run with the cursor inside a `### note` block.
+
+| Command | Description |
+|---------|-------------|
+| `:topic <text>` | Set the topic for the note block |
+
+#### UI
+
+| Command | Description |
+|---------|-------------|
+| `:theme light` | Switch to the light theme |
+| `:theme dark` | Switch to the dark theme |
+
+---
+
 ## Quick Start
 
 ```sh

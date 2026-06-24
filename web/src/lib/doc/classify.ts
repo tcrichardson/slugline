@@ -3,8 +3,8 @@ import type { ClassifiedLine } from './types';
 const HEADING = /^(#{1,6})\s+(.*)$/;
 const TASK = /^- \[([ xX])\]\s?(.*)$/;
 const META = /^meta:(\S+)(?: (.*))?$/;
-const UL = /^\s*[-*+]\s+(.*)$/;
-const OL = /^\s*\d+\.\s+(.*)$/;
+const UL = /^(\s*)[-*+]\s+(.*)$/;
+const OL = /^(\s*)(\d+)\.\s+(.*)$/;
 
 export function classifyLine(raw: string): ClassifiedLine {
   if (raw.trim() === '') return { kind: 'blank', raw, text: '' };
@@ -19,9 +19,9 @@ export function classifyLine(raw: string): ClassifiedLine {
   if (m) return { kind: 'meta', raw, metaKey: m[1], text: (m[2] ?? '').trim() };
 
   const ul = UL.exec(raw);
-  if (ul) return { kind: 'list', raw, text: ul[1] };
+  if (ul) return { kind: 'list', raw, text: ul[2], ordered: false, depth: Math.floor(ul[1].length / 2) };
   const ol = OL.exec(raw);
-  if (ol) return { kind: 'list', raw, text: ol[1] };
+  if (ol) return { kind: 'list', raw, text: ol[3], ordered: true, listNumber: parseInt(ol[2], 10), depth: Math.floor(ol[1].length / 2) };
 
   return { kind: 'paragraph', raw, text: raw };
 }

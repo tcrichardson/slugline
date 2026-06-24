@@ -40,10 +40,42 @@ describe('classifyLine', () => {
     expect(m.text).toBe('');
   });
 
-  it('classifies plain list items', () => {
+  it('classifies plain unordered list items', () => {
     const l = classifyLine('- a bullet');
     expect(l.kind).toBe('list');
     expect(l.text).toBe('a bullet');
+    expect(l.ordered).toBe(false);
+    expect(l.depth).toBe(0);
+  });
+
+  it('classifies ordered list items', () => {
+    const l = classifyLine('1. first item');
+    expect(l.kind).toBe('list');
+    expect(l.text).toBe('first item');
+    expect(l.ordered).toBe(true);
+    expect(l.listNumber).toBe(1);
+    expect(l.depth).toBe(0);
+
+    const l3 = classifyLine('3. third item');
+    expect(l3.ordered).toBe(true);
+    expect(l3.listNumber).toBe(3);
+    expect(l3.text).toBe('third item');
+  });
+
+  it('classifies indented list items with depth', () => {
+    const sub = classifyLine('  - sub bullet');
+    expect(sub.kind).toBe('list');
+    expect(sub.ordered).toBe(false);
+    expect(sub.depth).toBe(1);
+    expect(sub.text).toBe('sub bullet');
+
+    const deep = classifyLine('    - deep bullet');
+    expect(deep.depth).toBe(2);
+
+    const subOl = classifyLine('  1. sub numbered');
+    expect(subOl.ordered).toBe(true);
+    expect(subOl.depth).toBe(1);
+    expect(subOl.listNumber).toBe(1);
   });
 
   it('falls back to paragraph', () => {

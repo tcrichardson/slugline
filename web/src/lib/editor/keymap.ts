@@ -135,7 +135,7 @@ function handleNormalMode(state: EditorState, key: KeyInput, ctx: CommandCtx): K
     case ']':
       return { state, effect: { type: 'nextDay' } };
     case 'Escape':
-      return { state: { ...state, pending: '', message: '' } };
+      return { state: I.enterInsert({ ...state, pending: '', message: '' }) };
   }
   if (key.ctrl && (key.key === 'r' || key.key === 'R')) return { state: redo(state) };
   if (key.ctrl && (key.key === 't' || key.key === 'T')) return { state, effect: { type: 'today' } };

@@ -12,6 +12,12 @@ export interface ClassifiedLine {
   done?: boolean;
   /** Key when kind === 'meta'. */
   metaKey?: string;
+  /** Whether a list item is ordered (numbered) when kind === 'list'. */
+  ordered?: boolean;
+  /** The explicit number for ordered list items when kind === 'list' and ordered === true. */
+  listNumber?: number;
+  /** Indentation depth (0 = top-level) when kind === 'list'. */
+  depth?: number;
 }
 
 export interface MetaEntry {
