@@ -3,6 +3,7 @@
   import Header from './lib/components/Header.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   import EditorPane from './lib/components/EditorPane.svelte';
+  import StatusLine from './lib/components/StatusLine.svelte';
   import { app } from './lib/appState.svelte';
 
   onMount(() => {
@@ -10,22 +11,12 @@
   });
 
   function onKeydown(e: KeyboardEvent) {
-    const target = e.target;
-    const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
-
-    if ((e.ctrlKey || e.metaKey) && (e.key === 't' || e.key === 'T')) {
-      e.preventDefault();
-      app.goToday();
-      return;
-    }
-    if (typing) return;
-    if (e.key === '[') {
-      e.preventDefault();
-      app.prevDay();
-    } else if (e.key === ']') {
-      e.preventDefault();
-      app.nextDay();
-    }
+    // Let browser-level Cmd/Meta shortcuts (reload, devtools) and function keys through.
+    if (e.metaKey) return;
+    if (/^F\d{1,2}$/.test(e.key)) return;
+    if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
+    e.preventDefault();
+    app.onKey({ key: e.key, ctrl: e.ctrlKey, meta: e.metaKey, shift: e.shiftKey });
   }
 </script>
 
@@ -37,6 +28,7 @@
     <EditorPane />
     <Sidebar />
   </div>
+  <StatusLine />
 </div>
 
 <style>
