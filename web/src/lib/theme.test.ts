@@ -19,6 +19,13 @@ describe('theme', () => {
     expect(t['--bg']).toBe('#000000');
     expect(t['--fg']).toBe(DARK['--fg']);
   });
+
+  it('defines the rule and edit-bar tokens for both themes', () => {
+    for (const t of [LIGHT, DARK]) {
+      expect(t['--rule']).toMatch(/^#/);
+      expect(t['--edit-bar-bg']).toMatch(/^#/);
+    }
+  });
 });
 
 describe('nextTheme', () => {

@@ -15,6 +15,8 @@ export const LIGHT: Tokens = {
   '--meta': '#6b7686',
   '--status-bar': '#eef2f9',
   '--edit-line-bg': '#eaf1ff',
+  '--edit-bar-bg': '#e2ebff',
+  '--rule': '#d9e0ec',
   '--cursor': '#1b2330',
 };
 
@@ -33,6 +35,8 @@ export const DARK: Tokens = {
   '--meta': '#97a1b3',
   '--status-bar': '#1f2535',
   '--edit-line-bg': '#222a3d',
+  '--edit-bar-bg': '#2a344c',
+  '--rule': '#2d3650',
   '--cursor': '#e7ecf5',
 };
 
