@@ -4,6 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use toml_edit;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
@@ -124,6 +125,52 @@ pub fn load_or_create(path: &Path) -> io::Result<Config> {
     }
 }
 
+/// Read just the UI config subset from `path`, falling back to defaults on any error.
+pub fn read_ui(path: &Path) -> UiConfig {
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| Config::from_toml(&s).ok())
+        .map(|c| c.ui)
+        .unwrap_or_default()
+}
+
+/// Surgically set `ui.theme` in the TOML at `path`, preserving comments and
+/// formatting. Creates the file with defaults first if it does not exist.
+pub fn update_theme(path: &Path, theme: &str) -> io::Result<()> {
+    let existing = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            let s = toml::to_string_pretty(&Config::default())
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(path, &s)?;
+            s
+        }
+        Err(e) => return Err(e),
+    };
+
+    let mut doc = existing
+        .parse::<toml_edit::DocumentMut>()
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+    // Preserve the inline comment suffix (e.g. `  # current theme`) on the value.
+    let existing_suffix = doc["ui"]["theme"]
+        .as_value()
+        .and_then(|v| v.decor().suffix())
+        .and_then(|s| s.as_str())
+        .map(|s| s.to_owned());
+
+    let mut new_val = toml_edit::Value::from(theme);
+    if let Some(suffix) = existing_suffix {
+        new_val.decor_mut().set_suffix(suffix);
+    }
+    doc["ui"]["theme"] = toml_edit::Item::Value(new_val);
+
+    fs::write(path, doc.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,5 +224,43 @@ mod tests {
         // Second load reads the file back.
         let again = load_or_create(&path).unwrap();
         assert_eq!(again.server.port, 4747);
+    }
+
+    #[test]
+    fn update_theme_preserves_comments_and_changes_value() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        fs::write(
+            &path,
+            "# my notes config\n[ui]\ntheme = \"light\"  # current theme\nfont = \"Roboto\"\n",
+        )
+        .unwrap();
+
+        update_theme(&path, "dark").unwrap();
+
+        let after = fs::read_to_string(&path).unwrap();
+        assert!(after.contains("# my notes config"), "leading comment kept");
+        assert!(after.contains("# current theme"), "inline comment kept");
+        assert!(after.contains("theme = \"dark\""), "theme updated");
+        // Round-trips through the normal parser.
+        let cfg = Config::from_toml(&after).unwrap();
+        assert_eq!(cfg.ui.theme, "dark");
+    }
+
+    #[test]
+    fn update_theme_creates_file_when_missing() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("nested").join("config.toml");
+        update_theme(&path, "dark").unwrap();
+        let cfg = load_or_create(&path).unwrap();
+        assert_eq!(cfg.ui.theme, "dark");
+    }
+
+    #[test]
+    fn read_ui_defaults_on_missing_file() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("absent.toml");
+        let ui = read_ui(&path);
+        assert_eq!(ui.theme, "light");
     }
 }
