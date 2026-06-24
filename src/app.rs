@@ -1,17 +1,20 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
 use axum::http::{header, StatusCode};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::{get, put};
 use axum::{Json, Router};
 
-use crate::config::UiConfig;
+use serde::Deserialize;
+
+use crate::config::{read_ui, update_theme};
 use crate::store::NotesStore;
 
 pub struct AppState {
     pub store: NotesStore,
-    pub ui: UiConfig,
+    pub config_path: PathBuf,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -21,6 +24,7 @@ pub fn build_router(state: SharedState) -> Router {
         .route("/api/notes", get(list_notes))
         .route("/api/notes/{date}", get(get_note).put(put_note))
         .route("/api/config", get(get_config))
+        .route("/api/config/theme", put(put_config_theme))
         .fallback(crate::assets::static_handler)
         .with_state(state)
 }
@@ -61,7 +65,25 @@ async fn put_note(
 }
 
 async fn get_config(State(state): State<SharedState>) -> impl IntoResponse {
-    Json(state.ui.clone())
+    Json(read_ui(&state.config_path))
+}
+
+#[derive(Deserialize)]
+struct ThemeRequest {
+    theme: String,
+}
+
+async fn put_config_theme(
+    State(state): State<SharedState>,
+    Json(req): Json<ThemeRequest>,
+) -> impl IntoResponse {
+    if req.theme != "light" && req.theme != "dark" {
+        return (StatusCode::BAD_REQUEST, "unknown theme").into_response();
+    }
+    match update_theme(&state.config_path, &req.theme) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 #[cfg(test)]
@@ -69,18 +91,18 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::tempdir;
     use tower::ServiceExt;
 
-    use crate::config::UiConfig;
     use crate::store::NotesStore;
 
-    fn test_state(dir: PathBuf) -> SharedState {
+    fn test_state(tmp: &tempfile::TempDir) -> SharedState {
+        let config_path = tmp.path().join("config.toml");
+        std::fs::write(&config_path, "[ui]\ntheme = \"light\"\nfont = \"Roboto\"\n").unwrap();
         Arc::new(AppState {
-            store: NotesStore::new(dir),
-            ui: UiConfig::default(),
+            store: NotesStore::new(tmp.path().join("notes")),
+            config_path,
         })
     }
 
@@ -92,7 +114,7 @@ mod tests {
     #[tokio::test]
     async fn get_note_materializes_and_returns_markdown() {
         let dir = tempdir().unwrap();
-        let app = build_router(test_state(dir.path().to_path_buf()));
+        let app = build_router(test_state(&dir));
         let resp = app
             .oneshot(Request::get("/api/notes/2026-06-23").body(Body::empty()).unwrap())
             .await
@@ -100,13 +122,13 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let body = body_string(resp).await;
         assert!(body.starts_with("# 2026-06-23-TUE"));
-        assert!(dir.path().join("2026-06-23.md").exists());
+        assert!(dir.path().join("notes").join("2026-06-23.md").exists());
     }
 
     #[tokio::test]
     async fn get_note_rejects_bad_date() {
         let dir = tempdir().unwrap();
-        let app = build_router(test_state(dir.path().to_path_buf()));
+        let app = build_router(test_state(&dir));
         let resp = app
             .oneshot(Request::get("/api/notes/not-a-date").body(Body::empty()).unwrap())
             .await
@@ -117,7 +139,7 @@ mod tests {
     #[tokio::test]
     async fn put_then_list_round_trips() {
         let dir = tempdir().unwrap();
-        let app = build_router(test_state(dir.path().to_path_buf()));
+        let app = build_router(test_state(&dir));
 
         let put = app
             .clone()
@@ -140,7 +162,7 @@ mod tests {
     #[tokio::test]
     async fn config_endpoint_returns_ui_json() {
         let dir = tempdir().unwrap();
-        let app = build_router(test_state(dir.path().to_path_buf()));
+        let app = build_router(test_state(&dir));
         let resp = app
             .oneshot(Request::get("/api/config").body(Body::empty()).unwrap())
             .await
@@ -152,9 +174,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn put_theme_persists_and_get_reflects_it() {
+        let dir = tempdir().unwrap();
+        let state = test_state(&dir);
+        let path = state.config_path.clone();
+        let app = build_router(state);
+
+        let put = app
+            .clone()
+            .oneshot(
+                Request::put("/api/config/theme")
+                    .header("content-type", "application/json")
+                    .body(Body::from("{\"theme\":\"dark\"}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(put.status(), StatusCode::NO_CONTENT);
+
+        assert!(std::fs::read_to_string(&path).unwrap().contains("theme = \"dark\""));
+
+        let get = app
+            .oneshot(Request::get("/api/config").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert!(body_string(get).await.contains("\"theme\":\"dark\""));
+    }
+
+    #[tokio::test]
+    async fn put_theme_rejects_unknown_value() {
+        let dir = tempdir().unwrap();
+        let state = test_state(&dir);
+        let path = state.config_path.clone();
+        let app = build_router(state);
+
+        let put = app
+            .oneshot(
+                Request::put("/api/config/theme")
+                    .header("content-type", "application/json")
+                    .body(Body::from("{\"theme\":\"neon\"}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(put.status(), StatusCode::BAD_REQUEST);
+        // File untouched.
+        assert!(std::fs::read_to_string(&path).unwrap().contains("theme = \"light\""));
+    }
+
+    #[tokio::test]
     async fn serves_spa_index_at_root() {
         let dir = tempdir().unwrap();
-        let app = build_router(test_state(dir.path().to_path_buf()));
+        let app = build_router(test_state(&dir));
         let resp = app
             .oneshot(Request::get("/").body(Body::empty()).unwrap())
             .await

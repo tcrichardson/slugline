@@ -34,7 +34,7 @@ async fn main() {
 
     let state = Arc::new(AppState {
         store: NotesStore::new(resolved.notes_dir.clone()),
-        ui: config.ui.clone(),
+        config_path: config_path.clone(),
     });
     let app = build_router(state);
 
