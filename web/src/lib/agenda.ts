@@ -21,8 +21,8 @@ export function deriveAgenda(lines: string[]): AgendaItem[] {
       time: scheduled.value.trim(),
       name: block.name,
       headingLineIndex: block.headingLineIndex,
-      started: block.meta.find((m) => m.key === 'started')?.value,
-      ended: block.meta.find((m) => m.key === 'ended')?.value,
+      started: block.meta.find((m) => m.key === 'started')?.value.trim(),
+      ended: block.meta.find((m) => m.key === 'ended')?.value.trim(),
     });
   }
   items.sort((a, b) => a.time.localeCompare(b.time));
