@@ -26,3 +26,12 @@ export async function getConfig(): Promise<UiConfig> {
   if (!res.ok) throw new Error(`getConfig failed: ${res.status}`);
   return res.json();
 }
+
+export async function putTheme(theme: string): Promise<void> {
+  const res = await fetch('/api/config/theme', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ theme }),
+  });
+  if (!res.ok) throw new Error(`putTheme failed: ${res.status}`);
+}

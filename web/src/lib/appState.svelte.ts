@@ -9,8 +9,8 @@ import {
   type TabsState,
 } from './tabs';
 import { todayISO, addDays, yearMonth } from './dates';
-import { applyTheme } from './theme';
-import { getConfig, listNotes, getNote, putNote } from './api';
+import { applyTheme, nextTheme } from './theme';
+import { getConfig, listNotes, getNote, putNote, putTheme } from './api';
 import type { UiConfig } from './types';
 import { createEditorState, clampCursor, type EditorState } from './editor/state';
 import { handleKey, type KeyInput } from './editor/keymap';
@@ -103,6 +103,15 @@ class AppStore {
     this.saveTimer = setTimeout(() => void this.flush(), 750);
   }
 
+  private async persistTheme(theme: string): Promise<void> {
+    try {
+      await putTheme(theme);
+    } catch (e) {
+      console.error(e);
+      this.setError('Failed to save theme preference.');
+    }
+  }
+
   async flush(): Promise<void> {
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
@@ -145,12 +154,15 @@ class AppStore {
         await this.flush();
         this.tabsState = prevTab(this.tabsState);
         return this.loadActive();
-      case 'theme':
-        if (this.config) {
-          this.config = { ...this.config, theme: effect.theme };
-          applyTheme(effect.theme, this.config.font, this.config.colors);
-        }
+      case 'theme': {
+        if (!this.config) return;
+        const target = effect.theme === '' ? nextTheme(this.config.theme) : effect.theme;
+        this.config = { ...this.config, theme: target };
+        applyTheme(target, this.config.font, this.config.colors);
+        this.editor = { ...this.editor, message: `Theme: ${target}` };
+        await this.persistTheme(target);
         return;
+      }
     }
   }
 

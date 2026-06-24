@@ -182,7 +182,7 @@ export function runCommand(state: EditorState, ctx: CommandCtx): CommandResult {
     case 'w':
       return { state: { ...base, message: 'Written' }, effect: { type: 'save' } };
     case 'theme':
-      return { state: { ...base, message: `Theme: ${arg}` }, effect: { type: 'theme', theme: arg } };
+      return { state: { ...base, message: '' }, effect: { type: 'theme', theme: arg } };
     case 'meeting':
       return { state: addBlock(base, 'meetings', arg) };
     case 'note':
