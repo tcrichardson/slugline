@@ -1,0 +1,2 @@
+//! Slugline backend: a thin filesystem API over a notes directory.
+//! Modules are declared as they are implemented.
