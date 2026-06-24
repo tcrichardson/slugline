@@ -46,6 +46,12 @@ describe('validateCommand', () => {
     expect(validateCommand('start').ok).toBe(true);
     expect(validateCommand('close').ok).toBe(true);
   });
+
+  it('allows :theme with no argument (toggle)', () => {
+    const r = validateCommand('theme');
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.arg).toBe('');
+  });
 });
 
 describe('isValidDate', () => {

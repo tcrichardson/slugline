@@ -39,7 +39,7 @@ export const COMMANDS: Record<CommandName, CommandSpec> = {
   tab: { name: 'tab', argKind: 'date', argRequired: true },
   close: { name: 'close', argKind: 'none', argRequired: false },
   w: { name: 'w', argKind: 'none', argRequired: false },
-  theme: { name: 'theme', argKind: 'theme', argRequired: true },
+  theme: { name: 'theme', argKind: 'theme', argRequired: false },
 };
 
 export type ValidationResult =
@@ -64,7 +64,7 @@ export function validateCommand(input: string): ValidationResult {
   if (spec.argRequired && arg === '') return { ok: false, error: `:${name} requires an argument` };
   if (spec.argKind === 'time' && !TIME.test(arg)) return { ok: false, error: 'Expected HH:MM' };
   if (spec.argKind === 'date' && !isValidDate(arg)) return { ok: false, error: 'Expected YYYY-MM-DD' };
-  if (spec.argKind === 'theme' && arg !== 'light' && arg !== 'dark') {
+  if (spec.argKind === 'theme' && arg !== '' && arg !== 'light' && arg !== 'dark') {
     return { ok: false, error: 'Expected light or dark' };
   }
 

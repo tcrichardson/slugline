@@ -40,6 +40,11 @@ export function builtinTokens(theme: string): Tokens {
   return theme === 'dark' ? { ...DARK } : { ...LIGHT };
 }
 
+/** The opposite of the given theme (anything not 'dark' flips to 'dark'). */
+export function nextTheme(theme: string): string {
+  return theme === 'dark' ? 'light' : 'dark';
+}
+
 /** Merge built-in tokens with per-theme overrides from config. */
 export function resolveTokens(
   theme: string,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveTokens, LIGHT, DARK } from './theme';
+import { resolveTokens, LIGHT, DARK, nextTheme } from './theme';
 
 describe('theme', () => {
   it('returns built-in light tokens by default', () => {
@@ -18,5 +18,13 @@ describe('theme', () => {
     const t = resolveTokens('dark', { dark: { '--bg': '#000000' } });
     expect(t['--bg']).toBe('#000000');
     expect(t['--fg']).toBe(DARK['--fg']);
+  });
+});
+
+describe('nextTheme', () => {
+  it('flips dark to light and anything else to dark', () => {
+    expect(nextTheme('dark')).toBe('light');
+    expect(nextTheme('light')).toBe('dark');
+    expect(nextTheme('whatever')).toBe('dark');
   });
 });
