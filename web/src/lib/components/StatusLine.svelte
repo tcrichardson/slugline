@@ -37,7 +37,7 @@
     display: flex; gap: 1rem; align-items: center;
     padding: 0.25rem 1rem; background: var(--status-bar); color: var(--muted);
     font-size: 0.8rem; font-family: ui-monospace, 'SF Mono', monospace;
-    border-top: 1px solid var(--status-bar);
+    border-top: 1px solid var(--rule);
   }
   .mode { font-weight: 700; color: var(--fg); }
   .cmd { color: var(--fg); }
