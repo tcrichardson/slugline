@@ -30,9 +30,12 @@ class AppStore {
   calendar = $state<{ year: number; month: number }>(yearMonth(todayISO()));
   todoGroups = $state<TodoGroup[]>([]);
 
+  error = $state<string | null>(null);
+
   private sharedRegister: string[] = [];
   private lastSaved = '';
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private errorTimer: ReturnType<typeof setTimeout> | null = null;
 
   get activeDate(): string {
     return activeDate(this.tabsState);
@@ -44,6 +47,7 @@ class AppStore {
       applyTheme(this.config.theme, this.config.font, this.config.colors);
     } catch (e) {
       console.error(e);
+      this.setError('Failed to load settings; using defaults.');
     }
     await this.loadActive();
     setInterval(() => {
@@ -70,6 +74,7 @@ class AppStore {
       await this.refreshTodos();
     } catch (e) {
       console.error(e);
+      this.setError(`Failed to load note ${date}.`);
     }
   }
 
@@ -110,8 +115,9 @@ class AppStore {
       this.lastSaved = content;
       await this.refreshTodos();
     } catch (e) {
-      this.editor = { ...this.editor, message: 'Save failed' };
       console.error(e);
+      this.editor = { ...this.editor, message: 'Save failed' };
+      this.setError('Save failed — your edits are kept in memory and will retry.');
     }
   }
 
@@ -203,6 +209,22 @@ class AppStore {
     }
     await this.goToDate(date);
     this.jumpToLine(line);
+  }
+
+  setError(message: string): void {
+    this.error = message;
+    if (this.errorTimer) clearTimeout(this.errorTimer);
+    this.errorTimer = setTimeout(() => {
+      this.error = null;
+    }, 5000);
+  }
+
+  clearError(): void {
+    if (this.errorTimer) {
+      clearTimeout(this.errorTimer);
+      this.errorTimer = null;
+    }
+    this.error = null;
   }
 
   prevMonth(): void {

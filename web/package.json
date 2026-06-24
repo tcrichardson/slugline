@@ -20,5 +20,8 @@
     "typescript": "~6.0.2",
     "vite": "^8.1.0",
     "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.2.10"
   }
 }

@@ -1,4 +1,4 @@
-.PHONY: dev run test test-web fmt fmt-web build dev-web
+.PHONY: dev run test test-web fmt fmt-web build dev-web dist
 
 # Run the backend (serves the embedded SPA + API)
 run:
@@ -27,3 +27,7 @@ dev-web:
 build:
 	cd web && npm run build
 	cargo build --release
+
+dist: build
+	@echo "Built single binary:"
+	@ls -lh target/release/slugline

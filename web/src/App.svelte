@@ -4,6 +4,7 @@
   import Sidebar from './lib/components/Sidebar.svelte';
   import EditorPane from './lib/components/EditorPane.svelte';
   import StatusLine from './lib/components/StatusLine.svelte';
+  import Toast from './lib/components/Toast.svelte';
   import { app } from './lib/appState.svelte';
 
   onMount(() => {
@@ -29,6 +30,7 @@
     <Sidebar />
   </div>
   <StatusLine />
+  <Toast />
 </div>
 
 <style>

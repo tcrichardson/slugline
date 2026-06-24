@@ -5,7 +5,7 @@ use clap::Parser;
 use crate::config::{expand_tilde, Config};
 
 #[derive(Parser, Debug, Default)]
-#[command(name = "slugline", about = "Keyboard-driven daily notes")]
+#[command(name = "slugline", version, about = "Keyboard-driven daily notes")]
 pub struct Cli {
     /// Override the notes directory.
     #[arg(long)]
