@@ -8,8 +8,8 @@ future Rust parser MUST conform to this spec and pass the `fixtures/` corpus.
 
 1. **blank** — the line is empty or whitespace-only.
 2. **heading** — `^(#{1,6})\s+(.*)$`. Level = count of `#` (1–6). Text = remainder, trimmed.
-3. **task** — `^- \[([ xX])\]\s?(.*)$`. `done` = bracket char is `x`/`X`. Text = remainder.
-4. **meta** — `^meta:(\S+)(?: (.*))?$`. Key = chars after `meta:` up to first space. Value = remainder, trimmed (may be empty).
+3. **task** — `^- \[([ xX])\]\s?(.*)$`. `done` = captured char is `x` or `X`. Text = remainder.
+4. **meta** — `^meta:(\S+)(?: (.*))?$`. Key = chars after `meta:` up to first space. Value = remainder after the first space, trimmed (may be empty).
 5. **list** — `^\s*[-*+]\s+(.*)$` or `^\s*\d+\.\s+(.*)$`. Text = remainder.
 6. **paragraph** — anything else. Text = the raw line.
 
