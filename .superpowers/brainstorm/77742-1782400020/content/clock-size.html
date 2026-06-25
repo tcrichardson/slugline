@@ -1,0 +1,110 @@
+<style>
+  .demo-header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.5rem 1rem;
+    background: #eef2f9;
+    border-bottom: 1px solid #d9e0ec;
+    font-family: Roboto, system-ui, sans-serif;
+    font-size: 14px;
+  }
+  .demo-tabs {
+    display: flex;
+    gap: 0.25rem;
+    align-items: flex-end;
+    flex: 1;
+  }
+  .demo-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    cursor: default;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    font-family: inherit;
+    border-radius: 0;
+    background: transparent;
+    color: #5b6675;
+  }
+  .demo-tab.active {
+    background: #e2ebff;
+    color: #1b2330;
+  }
+  .demo-close { opacity: 0.6; }
+  .demo-clock {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    color: #5b6675;
+    line-height: 1.15;
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<h2>Clock Font Size</h2>
+<p class="subtitle">Current size is 0.78rem (~11px). How large should the date & time be?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="demo-header">
+        <div class="demo-tabs">
+          <button class="demo-tab active">2026-06-23 <span class="demo-close">×</span></button>
+          <button class="demo-tab">2026-06-24 <span class="demo-close">×</span></button>
+        </div>
+        <div class="demo-clock" style="font-size:0.9rem">
+          <span>2026-06-25</span>
+          <span>11:05</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 0.9rem (~13px)</h3>
+      <p>Slight bump. Still understated.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="demo-header">
+        <div class="demo-tabs">
+          <button class="demo-tab active">2026-06-23 <span class="demo-close">×</span></button>
+          <button class="demo-tab">2026-06-24 <span class="demo-close">×</span></button>
+        </div>
+        <div class="demo-clock" style="font-size:1rem">
+          <span>2026-06-25</span>
+          <span>11:05</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 1rem (~14px)</h3>
+      <p>Matches body text size. Clear and readable.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="demo-header">
+        <div class="demo-tabs">
+          <button class="demo-tab active">2026-06-23 <span class="demo-close">×</span></button>
+          <button class="demo-tab">2026-06-24 <span class="demo-close">×</span></button>
+        </div>
+        <div class="demo-clock" style="font-size:1.1rem">
+          <span>2026-06-25</span>
+          <span>11:05</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 1.1rem (~15px)</h3>
+      <p>Noticeably larger. Makes the clock a visual anchor in the header.</p>
+    </div>
+  </div>
+
+</div>
