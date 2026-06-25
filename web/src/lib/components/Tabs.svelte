@@ -35,10 +35,10 @@
   .tab {
     display: inline-flex; align-items: center; gap: 0.4rem;
     border: none; cursor: pointer; padding: 0.3rem 0.6rem;
-    border-radius: 6px 6px 0 0; background: transparent; color: var(--muted);
+    background: transparent; color: var(--muted);
     font: inherit; font-size: 0.85rem; white-space: nowrap;
   }
-  .tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab.active { background: var(--edit-bar-bg); color: var(--fg); }
   .close { opacity: 0.6; }
   .close:hover { opacity: 1; }
 </style>
