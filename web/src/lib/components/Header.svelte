@@ -13,7 +13,6 @@
 </script>
 
 <header class="header">
-  <div class="name">Slugline</div>
   <Tabs />
   <div class="clock">
     <span>{dateStr}</span>
@@ -27,7 +26,6 @@
     padding: 0.5rem 1rem; background: var(--status-bar);
     border-bottom: 1px solid var(--rule);
   }
-  .name { font-weight: 700; font-size: 1.1rem; color: var(--heading-1); letter-spacing: 0.02em; }
   .clock {
     margin-left: auto; display: flex; flex-direction: column;
     text-align: right; font-size: 0.78rem; color: var(--muted); line-height: 1.15;
