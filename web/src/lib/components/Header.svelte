@@ -28,7 +28,7 @@
   }
   .clock {
     margin-left: auto; display: flex; flex-direction: column;
-    text-align: right; font-size: 0.78rem; color: var(--muted); line-height: 1.15;
+    text-align: right; font-size: 1.1rem; color: var(--muted); line-height: 1.15;
   }
   .time { font-variant-numeric: tabular-nums; }
 </style>
