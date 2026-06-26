@@ -123,3 +123,51 @@ describe('runCommand', () => {
     expect(r.state.lines).toEqual(TPL);
   });
 });
+
+describe(':people command', () => {
+  // Cursor at line 4 = body of "### Sync" meeting
+  const meetingLines = ['# T', '', '## Meetings', '### Sync', '', '## Notes', ''];
+  // Cursor at line 6 = body of "### Retro" note
+  const noteLines = ['# T', '', '## Meetings', '', '## Notes', '### Retro', '', ''];
+
+  it('sets meta:people in a meeting block', () => {
+    const r = runCommand(
+      { ...createEditorState(meetingLines), command: 'people Alice', cursor: { line: 4, col: 0 } },
+      ctx,
+    );
+    expect(r.state.lines).toContain('meta:people Alice');
+    expect(r.state.message).toBe('');
+  });
+
+  it('appends to existing meta:people in a meeting block', () => {
+    const lines = ['# T', '', '## Meetings', '### Sync', 'meta:people Alice', '', '## Notes', ''];
+    const r = runCommand(
+      { ...createEditorState(lines), command: 'people Bob', cursor: { line: 5, col: 0 } },
+      ctx,
+    );
+    expect(r.state.lines).toContain('meta:people Alice, Bob');
+  });
+
+  it('sets meta:people in a note block', () => {
+    const r = runCommand(
+      { ...createEditorState(noteLines), command: 'people Alice', cursor: { line: 6, col: 0 } },
+      ctx,
+    );
+    expect(r.state.lines).toContain('meta:people Alice');
+    expect(r.state.message).toBe('');
+  });
+
+  it('errors when not in a meeting or note block', () => {
+    // TPL cursor line 2 = "## To Do" section heading, not inside any block
+    const r = runCommand(withCmd(TPL, 'people Alice', 2), ctx);
+    expect(r.state.message).toContain('meeting or note');
+  });
+
+  it(':p shortcut works end-to-end through runCommand', () => {
+    const r = runCommand(
+      { ...createEditorState(meetingLines), command: 'p Alice', cursor: { line: 4, col: 0 } },
+      ctx,
+    );
+    expect(r.state.lines).toContain('meta:people Alice');
+  });
+});

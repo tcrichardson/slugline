@@ -218,5 +218,14 @@ export function runCommand(state: EditorState, ctx: CommandCtx): CommandResult {
       return { state: setMeta(base, 'meeting', 'ended', ctx.nowHHMM) };
     case 'topic':
       return { state: setMeta(base, 'note', 'topic', arg) };
+    case 'people': {
+      const pCtx = resolveContext(scanDocument(base.lines), base.cursor.line);
+      if (pCtx.kind !== 'meeting' && pCtx.kind !== 'note') {
+        return { state: { ...base, message: 'Not in a meeting or note' } };
+      }
+      const ns = pushUndo(base);
+      const { lines } = appendMeta(ns.lines, pCtx.block, 'people', arg);
+      return { state: { ...ns, lines, message: '' } };
+    }
   }
 }
