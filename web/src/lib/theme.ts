@@ -18,6 +18,8 @@ export const LIGHT: Tokens = {
   '--edit-bar-bg': '#e2ebff',
   '--rule': '#d9e0ec',
   '--cursor': '#1b2330',
+  '--blockquote-border': '#93c5fd',
+  '--highlight-bg': '#fef08a',
 };
 
 export const DARK: Tokens = {
@@ -25,8 +27,8 @@ export const DARK: Tokens = {
   '--fg': '#e7ecf5',
   '--muted': '#97a1b3',
   '--accent': '#6f9bff',
-  '--heading-1': '#9cc2fc',
-  '--heading-2': '#7dabfb',
+  '--heading-1': '#FFBA00',
+  '--heading-2': '#FFBA00',
   '--heading-3': '#60a5fa',
   '--heading-4': '#3b82f6',
   '--heading-5': '#2563eb',
@@ -38,6 +40,8 @@ export const DARK: Tokens = {
   '--edit-bar-bg': '#2a344c',
   '--rule': '#2d3650',
   '--cursor': '#e7ecf5',
+  '--blockquote-border': '#3b82f6',
+  '--highlight-bg': '#713f12',
 };
 
 export function builtinTokens(theme: string): Tokens {
