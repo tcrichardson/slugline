@@ -83,4 +83,22 @@ describe('classifyLine', () => {
     expect(p.kind).toBe('paragraph');
     expect(p.text).toBe('just some prose');
   });
+
+  it('classifies blockquote lines with space after >', () => {
+    const b = classifyLine('> some quoted text');
+    expect(b.kind).toBe('blockquote');
+    expect(b.text).toBe('some quoted text');
+  });
+
+  it('classifies blockquote lines without space after >', () => {
+    const b = classifyLine('>no space');
+    expect(b.kind).toBe('blockquote');
+    expect(b.text).toBe('no space');
+  });
+
+  it('classifies bare > as blockquote with empty text', () => {
+    const b = classifyLine('>');
+    expect(b.kind).toBe('blockquote');
+    expect(b.text).toBe('');
+  });
 });

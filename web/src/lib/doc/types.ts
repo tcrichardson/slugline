@@ -1,4 +1,4 @@
-export type LineKind = 'heading' | 'task' | 'list' | 'meta' | 'blank' | 'paragraph';
+export type LineKind = 'heading' | 'task' | 'list' | 'meta' | 'blank' | 'paragraph' | 'blockquote';
 
 export interface ClassifiedLine {
   kind: LineKind;

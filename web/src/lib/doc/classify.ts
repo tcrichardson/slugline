@@ -5,6 +5,7 @@ const TASK = /^- \[([ xX])\]\s?(.*)$/;
 const META = /^meta:(\S+)(?: (.*))?$/;
 const UL = /^(\s*)[-*+]\s+(.*)$/;
 const OL = /^(\s*)(\d+)\.\s+(.*)$/;
+const BLOCKQUOTE = /^>\s?(.*)$/;
 
 export function classifyLine(raw: string): ClassifiedLine {
   if (raw.trim() === '') return { kind: 'blank', raw, text: '' };
@@ -17,6 +18,9 @@ export function classifyLine(raw: string): ClassifiedLine {
 
   const m = META.exec(raw);
   if (m) return { kind: 'meta', raw, metaKey: m[1], text: (m[2] ?? '').trim() };
+
+  const bq = BLOCKQUOTE.exec(raw);
+  if (bq) return { kind: 'blockquote', raw, text: bq[1] };
 
   const ul = UL.exec(raw);
   if (ul) return { kind: 'list', raw, text: ul[2], ordered: false, depth: Math.floor(ul[1].length / 2) };
