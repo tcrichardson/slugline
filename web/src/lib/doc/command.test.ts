@@ -60,3 +60,28 @@ describe('isValidDate', () => {
     expect(isValidDate('2026-02-28')).toBe(true);
   });
 });
+
+describe('ALIASES and :people command', () => {
+  it(':p Alice resolves to command people via validateCommand', () => {
+    const r = validateCommand('p Alice Smith');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.command).toBe('people');
+      expect(r.arg).toBe('Alice Smith');
+    }
+  });
+
+  it(':p with no argument fails validation', () => {
+    const r = validateCommand('p');
+    expect(r.ok).toBe(false);
+  });
+
+  it(':people resolves directly', () => {
+    const r = validateCommand('people Bob Jones');
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.command).toBe('people');
+      expect(r.arg).toBe('Bob Jones');
+    }
+  });
+});

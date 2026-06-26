@@ -13,7 +13,7 @@ export function parseCommandLine(input: string): ParsedCommand {
 
 export type CommandName =
   | 'meeting' | 'note' | 'section' | 'todo'
-  | 'start' | 'end' | 'scheduled' | 'purpose' | 'topic'
+  | 'start' | 'end' | 'scheduled' | 'purpose' | 'topic' | 'people'
   | 'goto' | 'today' | 'tab' | 'close' | 'w' | 'theme';
 
 export type ArgKind = 'none' | 'text' | 'time' | 'date' | 'theme';
@@ -25,21 +25,27 @@ export interface CommandSpec {
 }
 
 export const COMMANDS: Record<CommandName, CommandSpec> = {
-  meeting: { name: 'meeting', argKind: 'text', argRequired: true },
-  note: { name: 'note', argKind: 'text', argRequired: true },
-  section: { name: 'section', argKind: 'text', argRequired: true },
-  todo: { name: 'todo', argKind: 'text', argRequired: true },
-  start: { name: 'start', argKind: 'none', argRequired: false },
-  end: { name: 'end', argKind: 'none', argRequired: false },
-  scheduled: { name: 'scheduled', argKind: 'time', argRequired: true },
-  purpose: { name: 'purpose', argKind: 'text', argRequired: true },
-  topic: { name: 'topic', argKind: 'text', argRequired: true },
-  goto: { name: 'goto', argKind: 'date', argRequired: true },
-  today: { name: 'today', argKind: 'none', argRequired: false },
-  tab: { name: 'tab', argKind: 'date', argRequired: true },
-  close: { name: 'close', argKind: 'none', argRequired: false },
-  w: { name: 'w', argKind: 'none', argRequired: false },
-  theme: { name: 'theme', argKind: 'theme', argRequired: false },
+  meeting:   { name: 'meeting',   argKind: 'text',  argRequired: true  },
+  note:      { name: 'note',      argKind: 'text',  argRequired: true  },
+  section:   { name: 'section',   argKind: 'text',  argRequired: true  },
+  todo:      { name: 'todo',      argKind: 'text',  argRequired: true  },
+  start:     { name: 'start',     argKind: 'none',  argRequired: false },
+  end:       { name: 'end',       argKind: 'none',  argRequired: false },
+  scheduled: { name: 'scheduled', argKind: 'time',  argRequired: true  },
+  purpose:   { name: 'purpose',   argKind: 'text',  argRequired: true  },
+  topic:     { name: 'topic',     argKind: 'text',  argRequired: true  },
+  people:    { name: 'people',    argKind: 'text',  argRequired: true  },
+  goto:      { name: 'goto',      argKind: 'date',  argRequired: true  },
+  today:     { name: 'today',     argKind: 'none',  argRequired: false },
+  tab:       { name: 'tab',       argKind: 'date',  argRequired: true  },
+  close:     { name: 'close',     argKind: 'none',  argRequired: false },
+  w:         { name: 'w',         argKind: 'none',  argRequired: false },
+  theme:     { name: 'theme',     argKind: 'theme', argRequired: false },
+};
+
+/** Short aliases resolved before COMMANDS lookup. Add future shortcuts here. */
+export const ALIASES: Record<string, CommandName> = {
+  p: 'people',
 };
 
 export type ValidationResult =
@@ -58,8 +64,9 @@ export function isValidDate(s: string): boolean {
 
 export function validateCommand(input: string): ValidationResult {
   const { name, arg } = parseCommandLine(input);
-  if (!(name in COMMANDS)) return { ok: false, error: `Unknown command: :${name}` };
-  const spec = COMMANDS[name as CommandName];
+  const resolved = ALIASES[name] ?? name;
+  if (!(resolved in COMMANDS)) return { ok: false, error: `Unknown command: :${name}` };
+  const spec = COMMANDS[resolved as CommandName];
 
   if (spec.argRequired && arg === '') return { ok: false, error: `:${name} requires an argument` };
   if (spec.argKind === 'time' && !TIME.test(arg)) return { ok: false, error: 'Expected HH:MM' };
