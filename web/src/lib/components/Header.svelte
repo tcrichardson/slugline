@@ -16,6 +16,7 @@
   <Tabs />
   <div class="clock">
     <span>{dateStr}</span>
+    &nbsp;&nbsp;
     <span class="time">{timeStr}</span>
   </div>
 </header>
@@ -27,8 +28,8 @@
     border-bottom: 1px solid var(--rule);
   }
   .clock {
-    margin-left: auto; display: flex; flex-direction: column;
-    text-align: right; font-size: 1.1rem; color: var(--muted); line-height: 1.15;
+    margin-left: auto; display: flex; flex-direction: row;
+    text-align: right; font-size: 1.1rem; color: var(--fg); line-height: 1.15;
   }
   .time { font-variant-numeric: tabular-nums; }
 </style>
