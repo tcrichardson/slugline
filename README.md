@@ -5,7 +5,7 @@ A single-user, local-first, keyboard-driven (vim-modal) daily notes app. Notes a
 ## Features
 
 - **Vim-modal editor** — NORMAL/INSERT modes, motions (`h j k l w b e 0 $ gg G`), edits (`x dd yy p P o O i a A`), undo/redo (`u` / `Ctrl-R`)
-- **Per-line rendering** — one raw edit line; all other lines render pretty (headings, tasks, lists, bold/italic/code/links)
+- **Per-line rendering** — one raw edit line; all other lines render pretty (headings, tasks, lists, blockquotes, bold/italic/strikethrough/highlight/code/links)
 - **Tabs** — open multiple dates side-by-side (`gt` / `gT`, `:tab`, `:close`)
 - **Calendar sidebar** — dots on dates that have notes; click to open or create
 - **Agenda sidebar** — today's scheduled meetings and a 7-day to-do view
@@ -145,6 +145,7 @@ These commands must be run with the cursor inside a `### note` block.
 
 | Command | Description |
 |---------|-------------|
+| `:theme` | Toggle between light and dark |
 | `:theme light` | Switch to the light theme |
 | `:theme dark` | Switch to the dark theme |
 
@@ -283,10 +284,14 @@ Notes are plain Markdown files named `YYYY-MM-DD.md`. The supported subset:
 - [ ] Task item
 - [x] Done task
 - Regular list item
+  - Indented list item
+  1. Ordered list item
+
+> Blockquote text
 
 meta: value
 
-Paragraph with **bold**, *italic*, `code`, and [link text].
+Paragraph with **bold**, *italic*, ~~strikethrough~~, ==highlight==, `code`, and [link text](https://example.com).
 
 ## Meetings
 
@@ -298,3 +303,26 @@ topic: Standup
 purpose: Sync
 :::
 ```
+
+### Inline markup summary
+
+| Syntax | Renders as |
+|--------|-----------|
+| `**text**` | **Bold** |
+| `*text*` or `_text_` | *Italic* |
+| `~~text~~` | ~~Strikethrough~~ |
+| `==text==` | Highlighted background |
+| `` `code` `` | Inline code |
+| `[label](url)` | Hyperlink (http/https/mailto only) |
+
+### Block elements
+
+| Syntax | Renders as |
+|--------|-----------|
+| `# Heading` … `###### Heading` | H1–H6 headings |
+| `- [ ] text` / `- [x] text` | Open / done task checkbox |
+| `- text` / `* text` / `+ text` | Unordered list item |
+| `1. text` | Ordered list item |
+| `  - text` (2-space indent) | Nested list item (depth increases per 2 spaces) |
+| `> text` | Blockquote (left border, muted italic) |
+| `meta:key value` | Metadata field (used by agenda and meeting blocks) |
