@@ -26,6 +26,8 @@
         const indent = (c.depth ?? 0) * 1.5;
         return `<span class="li" style="padding-left:${indent}rem">${prefix} ${renderInline(c.text)}</span>`;
       }
+      case 'blockquote':
+        return `<span class="bq">${renderInline(c.text)}</span>`;
       default:
         return renderInline(c.text);
     }
@@ -82,4 +84,18 @@
   :global(.task.done) { color: var(--todo-done); text-decoration: line-through; }
   :global(.meta) { color: var(--meta); font-size: 0.85em; }
   :global(.mk) { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-right: 0.25em; }
+  :global(.bq) {
+    display: block;
+    border-left: 3px solid var(--blockquote-border);
+    padding-left: 0.75rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+  :global(del) { color: var(--muted); text-decoration: line-through; }
+  :global(mark) {
+    background: var(--highlight-bg);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 2px;
+  }
 </style>
