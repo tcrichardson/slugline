@@ -58,6 +58,23 @@ export function upsertMeta(
   return { lines: out, index: insertAt };
 }
 
+/** Append a new value to an existing `meta:key` line, or create it if absent.
+ *  Values are joined with ", ".
+ */
+export function appendMeta(
+  lines: string[],
+  block: Block,
+  key: string,
+  newValue: string,
+): { lines: string[]; index: number } {
+  const trimmed = newValue.trim();
+  const existing = block.meta.find((m) => m.key === key);
+  if (existing && existing.value.trim() !== '') {
+    return upsertMeta(lines, block, key, `${existing.value.trim()}, ${trimmed}`);
+  }
+  return upsertMeta(lines, block, key, trimmed);
+}
+
 /** Ensure a standard section exists; if missing, insert it in canonical order. */
 export function ensureSection(
   lines: string[],

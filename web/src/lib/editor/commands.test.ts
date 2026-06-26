@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { scanDocument } from '../doc/scan';
-import { ensureSection, appendBlock, appendLineToSection, upsertMeta, endOfEnclosingSection, runCommand } from './commands';
+import { ensureSection, appendBlock, appendLineToSection, upsertMeta, appendMeta, endOfEnclosingSection, runCommand } from './commands';
 import { createEditorState } from './state';
 
 const TEMPLATE = ['# 2026-06-23-TUE', '', '## To Do', '', '## Meetings', '', '## Notes', ''];
@@ -41,6 +41,30 @@ describe('command helpers', () => {
 
   it('endOfEnclosingSection finds the next same/shallower heading', () => {
     expect(endOfEnclosingSection(['### A', 'body', '### B'], 1, 3)).toBe(2);
+  });
+});
+
+describe('appendMeta', () => {
+  it('inserts meta:people when no prior value exists', () => {
+    const lines = ['## Meetings', '### Sync', ''];
+    const block = scanDocument(lines).sections[0].blocks[0];
+    const { lines: out } = appendMeta(lines, block, 'people', 'Alice');
+    expect(out).toContain('meta:people Alice');
+  });
+
+  it('appends comma-separated to an existing meta:people value', () => {
+    const lines = ['## Meetings', '### Sync', 'meta:people Alice', ''];
+    const block = scanDocument(lines).sections[0].blocks[0];
+    const { lines: out } = appendMeta(lines, block, 'people', 'Bob');
+    expect(out).toContain('meta:people Alice, Bob');
+    expect(out.filter((l) => l.startsWith('meta:people')).length).toBe(1);
+  });
+
+  it('trims whitespace from the new value before appending', () => {
+    const lines = ['## Meetings', '### Sync', 'meta:people Alice', ''];
+    const block = scanDocument(lines).sections[0].blocks[0];
+    const { lines: out } = appendMeta(lines, block, 'people', '  Bob  ');
+    expect(out).toContain('meta:people Alice, Bob');
   });
 });
 
