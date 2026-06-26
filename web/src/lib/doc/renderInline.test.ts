@@ -25,4 +25,23 @@ describe('renderInline', () => {
   it('rejects unsafe link schemes (no anchor produced)', () => {
     expect(renderInline('[x](javascript:alert(1))')).not.toContain('<a');
   });
+
+  it('renders strikethrough', () => {
+    expect(renderInline('~~deleted~~')).toBe('<del>deleted</del>');
+  });
+
+  it('renders highlight', () => {
+    expect(renderInline('==marked==')).toBe('<mark>marked</mark>');
+  });
+
+  it('renders strikethrough alongside bold without conflict', () => {
+    expect(renderInline('**bold** and ~~strike~~')).toBe(
+      '<strong>bold</strong> and <del>strike</del>',
+    );
+  });
+
+  it('does not process strikethrough or highlight inside code spans', () => {
+    expect(renderInline('`~~raw~~`')).toBe('<code>~~raw~~</code>');
+    expect(renderInline('`==raw==`')).toBe('<code>==raw==</code>');
+  });
 });

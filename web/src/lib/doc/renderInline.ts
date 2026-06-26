@@ -31,7 +31,13 @@ export function renderInline(text: string): string {
   s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   s = s.replace(/_([^_]+)_/g, '<em>$1</em>');
 
-  // 5. Restore code spans.
+  // 5a. Strikethrough.
+  s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+  // 5b. Highlight.
+  s = s.replace(/==([^=]+)==/g, '<mark>$1</mark>');
+
+  // 6. Restore code spans.
   s = s.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => codes[Number(i)]);
   return s;
 }
