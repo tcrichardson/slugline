@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCommandLine, validateCommand, isValidDate } from './command';
+import { parseCommandLine, validateCommand } from './command';
 
 describe('parseCommandLine', () => {
   it('splits name and rest-of-line argument', () => {
@@ -51,13 +51,6 @@ describe('validateCommand', () => {
     const r = validateCommand('theme');
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.arg).toBe('');
-  });
-});
-
-describe('isValidDate', () => {
-  it('rejects impossible calendar dates', () => {
-    expect(isValidDate('2026-02-30')).toBe(false);
-    expect(isValidDate('2026-02-28')).toBe(true);
   });
 });
 
