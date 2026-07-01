@@ -9,20 +9,26 @@ function sectionKind(title: string): SectionKind {
   return 'other';
 }
 
+/**
+ * Scans forward from `from` to `to` (inclusive) and returns the index just
+ * before the first heading whose level is `<= maxLevel`, or `to` if none is
+ * found. Used to find where an H3 block or H2 section ends.
+ */
+function findBoundaryEnd(classified: ClassifiedLine[], from: number, to: number, maxLevel: number): number {
+  for (let j = from; j <= to; j++) {
+    const c = classified[j];
+    if (c.kind === 'heading' && c.level! <= maxLevel) return j - 1;
+  }
+  return to;
+}
+
 function collectBlocks(classified: ClassifiedLine[], from: number, to: number): Block[] {
   const blocks: Block[] = [];
   for (let i = from; i <= to; i++) {
     const c = classified[i];
     if (c.kind === 'heading' && c.level === 3) {
       const start = i;
-      let end = to;
-      for (let j = i + 1; j <= to; j++) {
-        const cj = classified[j];
-        if (cj.kind === 'heading' && cj.level! <= 3) {
-          end = j - 1;
-          break;
-        }
-      }
+      const end = findBoundaryEnd(classified, i + 1, to, 3);
 
       const meta: MetaEntry[] = [];
       let metaEndLine = start;
@@ -65,14 +71,7 @@ export function scanDocument(lines: string[]): DocModel {
     const c = classified[i];
     if (c.kind === 'heading' && c.level === 2) {
       const start = i;
-      let end = lines.length - 1;
-      for (let j = i + 1; j < classified.length; j++) {
-        const cj = classified[j];
-        if (cj.kind === 'heading' && cj.level! <= 2) {
-          end = j - 1;
-          break;
-        }
-      }
+      const end = findBoundaryEnd(classified, i + 1, classified.length - 1, 2);
 
       const kind = sectionKind(c.text);
       const section: Section = {
