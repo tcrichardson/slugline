@@ -1,5 +1,7 @@
 mod app;
 mod cli;
+mod keys;
+mod ui;
 
 use clap::Parser;
 use iced::Task;
@@ -33,5 +35,6 @@ pub fn main() -> iced::Result {
     let date = today_iso();
 
     iced::application(App::title, App::update, App::view)
-        .run_with(move || (App::new(&store, date.clone()), Task::none()))
+        .subscription(App::subscription)
+        .run_with(move || (App::new(store.clone(), date.clone()), Task::none()))
 }

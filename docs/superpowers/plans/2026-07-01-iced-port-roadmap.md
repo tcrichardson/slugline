@@ -26,7 +26,7 @@
 | **1a** | `…-phase-1a-doc-model.md` | `doc` classify + inline-span renderer ported to `core` with tests (`Line` enum, `Vec<Span>`). | 0 |
 | **1b** | `…-phase-1b-editor-engine.md` | Editor engine ported to `core` with tests: `state/motions/edits/insert/keymap` (editing subset) + `KeyInput`/`KeyResult`/`AppEffect` types. | 0 |
 | **1c** | `…-phase-1c-iced-editing.md` | Iced editor pane (per-line pretty rendering + raw active line + block/beam cursor); global keyboard subscription → `handle_key`; debounced autosave to disk; flush-on-exit. The walking skeleton is complete when 1c passes. | 1a, 1b |
-| **2** | *(JIT)* | Navigation & tabs: `[ ] :goto :today`, `gt/gT :tab :close`, shared yank register across tabs, flush-before-navigate, `AppEffect`→`Task` wiring, window title reflects active date. | 1 |
+| **2** | `…-phase-2-navigation-tabs.md` | Navigation & tabs: `[ ] :goto :today`, `gt/gT :tab :close`, shared yank register across tabs, flush-before-navigate, `AppEffect`→`Task` wiring, window title reflects active date. | 1 |
 | **3** | *(JIT)* | Sidebar: calendar (has-note dots, click-to-open, month nav) inside a resizable/collapsible `pane_grid`. | 1, 2 |
 | **4** | *(JIT)* | Agenda derivation + 7-day To Do aggregation, click-to-navigate. | 1, 2, 3 |
 | **5** | *(JIT)* | Command mode → fuzzy command palette overlay; all `:` commands (`meeting/note/todo/section/scheduled/start/end/purpose/topic` + navigation); ⌘K. | 1, 2, 4 |

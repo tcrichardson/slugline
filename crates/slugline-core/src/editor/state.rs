@@ -197,7 +197,7 @@ mod tests {
         s = push_undo(&s);
         s.lines = vec!["b".into()];
         // Mutate after snapshot
-        s.lines[0].push_str("c");
+        s.lines[0].push('c');
         let undone = undo(&s);
         // Undo should restore "a", not "bc"
         assert_eq!(undone.lines, vec!["a".to_string()]);
