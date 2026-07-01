@@ -39,6 +39,13 @@ fn state_only(state: EditorState) -> KeyResult {
     }
 }
 
+fn state_effect(state: EditorState, effect: AppEffect) -> KeyResult {
+    KeyResult {
+        state,
+        effect: Some(effect),
+    }
+}
+
 pub fn handle_key(state: &EditorState, key: &KeyInput) -> KeyResult {
     // Phase 1: command mode (`:`) is never entered; it is added in Phase 5.
     if state.mode == Mode::Insert {
@@ -81,7 +88,8 @@ fn handle_normal(s: &EditorState, k: &KeyInput) -> KeyResult {
             let s2 = with_pending(s, Pending::None);
             return match k.key.as_str() {
                 "g" => state_only(motions::first_line(&s2)),
-                // "t"/"T" (gt/gT) emit TabNext/TabPrev — deferred to Phase 2.
+                "t" => state_effect(s2, AppEffect::TabNext),
+                "T" => state_effect(s2, AppEffect::TabPrev),
                 _ => handle_normal(&s2, k),
             };
         }
@@ -100,6 +108,16 @@ fn handle_normal(s: &EditorState, k: &KeyInput) -> KeyResult {
             };
         }
         Pending::None => {}
+    }
+
+    // Navigation effects (Phase 2): reachable in NORMAL mode only.
+    match k.key.as_str() {
+        "[" => return state_effect(s.clone(), AppEffect::PrevDay),
+        "]" => return state_effect(s.clone(), AppEffect::NextDay),
+        _ => {}
+    }
+    if k.ctrl && (k.key == "t" || k.key == "T") {
+        return state_effect(s.clone(), AppEffect::Today);
     }
 
     let st = match k.key.as_str() {
@@ -127,7 +145,7 @@ fn handle_normal(s: &EditorState, k: &KeyInput) -> KeyResult {
         "o" => insert::open_below(s),
         "O" => insert::open_above(s),
         "Enter" => motions::move_down(s),
-        // ":" / "[" / "]" / Ctrl-t are deferred (Phase 2/5).
+        // ":" command mode is deferred to Phase 5.
         _ => {
             if k.ctrl && (k.key == "r" || k.key == "R") {
                 state::redo(s)
@@ -219,10 +237,45 @@ mod tests {
         assert_eq!(s.cursor.line, 0);
     }
 
-    // TODO(phase 2/5): command mode (`:`) tests — deferred to Phase 5
-    // TODO(phase 2/5): `gt` / `gT` TabNext/TabPrev effect tests — deferred to Phase 2
-    // TODO(phase 2/5): `[` PrevDay / `]` NextDay effect tests — deferred to Phase 2
-    // TODO(phase 2/5): Ctrl-t Today effect test — deferred to Phase 2
+    // Ported from web/src/lib/editor/keymap.test.ts — navigation effects.
+
+    #[test]
+    fn gt_emits_tab_next_effect() {
+        let s = create_editor_state(vec!["a".into()], vec![]);
+        let s = handle_key(&s, &key("g")).state;
+        assert_eq!(handle_key(&s, &key("t")).effect, Some(AppEffect::TabNext));
+    }
+
+    #[test]
+    fn shift_gt_emits_tab_prev_effect() {
+        let s = create_editor_state(vec!["a".into()], vec![]);
+        let s = handle_key(&s, &key("g")).state;
+        assert_eq!(handle_key(&s, &key("T")).effect, Some(AppEffect::TabPrev));
+    }
+
+    #[test]
+    fn bracket_keys_emit_day_navigation() {
+        let s = create_editor_state(vec!["a".into()], vec![]);
+        assert_eq!(handle_key(&s, &key("[")).effect, Some(AppEffect::PrevDay));
+        assert_eq!(handle_key(&s, &key("]")).effect, Some(AppEffect::NextDay));
+    }
+
+    #[test]
+    fn ctrl_t_emits_today_effect() {
+        let s = create_editor_state(vec!["a".into()], vec![]);
+        let r = handle_key(
+            &s,
+            &KeyInput {
+                key: "t".into(),
+                ctrl: true,
+                meta: false,
+                shift: false,
+            },
+        );
+        assert_eq!(r.effect, Some(AppEffect::Today));
+    }
+
+    // TODO(phase 5): command mode (`:`) tests — deferred to Phase 5
 
     // Review flag: keymap.ts:137-138 maps Escape in NORMAL mode to enterInsert(...).
     // This looks like a latent bug and is deliberately NOT replicated here.
