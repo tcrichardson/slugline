@@ -2,4 +2,5 @@
 pub mod config;
 pub mod date;
 pub mod dates;
+pub mod doc;
 pub mod store;
