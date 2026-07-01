@@ -1,7 +1,10 @@
-use super::state::{clamp_cursor, Cursor, EditorState, Mode};
+use super::state::{EditorState, Mode, clamp_cursor};
 
 fn line_chars(s: &EditorState, line: usize) -> Vec<char> {
-    s.lines.get(line).map(|t| t.chars().collect()).unwrap_or_default()
+    s.lines
+        .get(line)
+        .map(|t| t.chars().collect())
+        .unwrap_or_default()
 }
 
 pub fn move_left(s: &EditorState) -> EditorState {
@@ -122,7 +125,7 @@ pub fn word_end(s: &EditorState) -> EditorState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::editor::state::create_editor_state;
+    use crate::editor::state::{Cursor, create_editor_state};
 
     fn at(lines: &[&str], line: usize, col: usize) -> EditorState {
         let mut s = create_editor_state(lines.iter().map(|s| s.to_string()).collect(), vec![]);

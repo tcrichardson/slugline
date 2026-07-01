@@ -39,7 +39,11 @@ pub struct EditorState {
 
 pub fn create_editor_state(lines: Vec<String>, register: Vec<String>) -> EditorState {
     EditorState {
-        lines: if lines.is_empty() { vec![String::new()] } else { lines },
+        lines: if lines.is_empty() {
+            vec![String::new()]
+        } else {
+            lines
+        },
         cursor: Cursor { line: 0, col: 0 },
         mode: Mode::Normal,
         register,
@@ -52,7 +56,10 @@ pub fn create_editor_state(lines: Vec<String>, register: Vec<String>) -> EditorS
 }
 
 pub fn snapshot(s: &EditorState) -> Snapshot {
-    Snapshot { lines: s.lines.clone(), cursor: s.cursor }
+    Snapshot {
+        lines: s.lines.clone(),
+        cursor: s.cursor,
+    }
 }
 
 /// Snapshot the pre-mutation state and clear redo. Call BEFORE applying a mutation.
@@ -66,7 +73,10 @@ pub fn push_undo(s: &EditorState) -> EditorState {
 pub fn undo(s: &EditorState) -> EditorState {
     let mut ns = s.clone();
     match ns.undo.pop() {
-        None => { ns.message = "Already at oldest change".into(); ns }
+        None => {
+            ns.message = "Already at oldest change".into();
+            ns
+        }
         Some(prev) => {
             ns.redo.push(snapshot(s));
             ns.lines = prev.lines;
@@ -80,7 +90,10 @@ pub fn undo(s: &EditorState) -> EditorState {
 pub fn redo(s: &EditorState) -> EditorState {
     let mut ns = s.clone();
     match ns.redo.pop() {
-        None => { ns.message = "Already at newest change".into(); ns }
+        None => {
+            ns.message = "Already at newest change".into();
+            ns
+        }
         Some(next) => {
             ns.undo.push(snapshot(s));
             ns.lines = next.lines;
@@ -100,7 +113,10 @@ pub fn clamp_cursor(s: &EditorState) -> EditorState {
         Mode::Insert => len,
         Mode::Normal => len.saturating_sub(1),
     };
-    ns.cursor = Cursor { line, col: ns.cursor.col.min(max_col) };
+    ns.cursor = Cursor {
+        line,
+        col: ns.cursor.col.min(max_col),
+    };
     ns
 }
 
@@ -155,7 +171,10 @@ mod tests {
         s = undo(&s);
         assert_eq!(s.lines, vec!["a".to_string(), "b".to_string()]);
         s = redo(&s);
-        assert_eq!(s.lines, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert_eq!(
+            s.lines,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
     }
 
     #[test]

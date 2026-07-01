@@ -2,10 +2,9 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use super::state::{clamp_cursor, push_undo, Cursor, EditorState};
+use super::state::{Cursor, EditorState, clamp_cursor, push_undo};
 
-static TASK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^(\s*- \[)([ xX])(\] )").unwrap());
+static TASK_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^(\s*- \[)([ xX])(\] )").unwrap());
 
 pub fn delete_char(s: &EditorState) -> EditorState {
     let text = s.lines.get(s.cursor.line).cloned().unwrap_or_default();
@@ -112,7 +111,10 @@ mod tests {
         let mut s = at(&["a", "b"], 0, 0);
         s.register = vec!["X".into()];
         let r = paste_below(&s);
-        assert_eq!(r.lines, vec!["a".to_string(), "X".to_string(), "b".to_string()]);
+        assert_eq!(
+            r.lines,
+            vec!["a".to_string(), "X".to_string(), "b".to_string()]
+        );
         assert_eq!(r.cursor, Cursor { line: 1, col: 0 });
     }
 
@@ -155,7 +157,10 @@ mod tests {
         let mut r = yank_line(&s);
         r.cursor = Cursor { line: 1, col: 0 };
         let r = paste_below(&r);
-        assert_eq!(r.lines, vec!["a".to_string(), "b".to_string(), "a".to_string()]);
+        assert_eq!(
+            r.lines,
+            vec!["a".to_string(), "b".to_string(), "a".to_string()]
+        );
     }
 
     #[test]
@@ -164,7 +169,10 @@ mod tests {
         let mut r = yank_line(&s);
         r.cursor = Cursor { line: 0, col: 0 };
         let r = paste_above(&r);
-        assert_eq!(r.lines, vec!["b".to_string(), "a".to_string(), "b".to_string()]);
+        assert_eq!(
+            r.lines,
+            vec!["b".to_string(), "a".to_string(), "b".to_string()]
+        );
     }
 
     #[test]

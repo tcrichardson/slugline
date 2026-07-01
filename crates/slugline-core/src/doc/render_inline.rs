@@ -12,7 +12,10 @@ pub struct Span {
 
 impl Span {
     pub fn plain(text: impl Into<String>) -> Self {
-        Span { text: text.into(), ..Default::default() }
+        Span {
+            text: text.into(),
+            ..Default::default()
+        }
     }
 }
 
@@ -38,7 +41,11 @@ pub fn render_inline(text: &str) -> Vec<Span> {
             && let Some(end) = find(&chars, i + 1, '`')
         {
             flush_plain!();
-            spans.push(Span { text: chars[i + 1..end].iter().collect(), code: true, ..Default::default() });
+            spans.push(Span {
+                text: chars[i + 1..end].iter().collect(),
+                code: true,
+                ..Default::default()
+            });
             i = end + 1;
             continue;
         }
@@ -48,7 +55,11 @@ pub fn render_inline(text: &str) -> Vec<Span> {
             && SAFE_SCHEMES.iter().any(|s| url.starts_with(s))
         {
             flush_plain!();
-            spans.push(Span { text: label, link: Some(url), ..Default::default() });
+            spans.push(Span {
+                text: label,
+                link: Some(url),
+                ..Default::default()
+            });
             i = next;
             continue;
         }
@@ -59,7 +70,10 @@ pub fn render_inline(text: &str) -> Vec<Span> {
                 flush_plain!();
                 spans.push(Span {
                     text: chars[open..close].iter().collect(),
-                    bold, italic, strike, highlight,
+                    bold,
+                    italic,
+                    strike,
+                    highlight,
                     ..Default::default()
                 });
                 i = close + delim.len();
@@ -90,9 +104,15 @@ fn find_seq(chars: &[char], from: usize, seq: &[char]) -> Option<usize> {
 /// (delimiter, bold, italic, strike, highlight) if an emphasis run opens at `i`.
 fn emphasis_at(chars: &[char], i: usize) -> Option<(&'static [char], bool, bool, bool, bool)> {
     let two = |a: char| i + 1 < chars.len() && chars[i] == a && chars[i + 1] == a;
-    if two('*') { return Some((&['*', '*'], true, false, false, false)); }
-    if two('~') { return Some((&['~', '~'], false, false, true, false)); }
-    if two('=') { return Some((&['=', '='], false, false, false, true)); }
+    if two('*') {
+        return Some((&['*', '*'], true, false, false, false));
+    }
+    if two('~') {
+        return Some((&['~', '~'], false, false, true, false));
+    }
+    if two('=') {
+        return Some((&['=', '='], false, false, false, true));
+    }
     if chars[i] == '*' || chars[i] == '_' {
         let d: &'static [char] = if chars[i] == '*' { &['*'] } else { &['_'] };
         return Some((d, false, true, false, false));
@@ -120,7 +140,10 @@ mod tests {
 
     #[test]
     fn plain_text_is_one_span() {
-        assert_eq!(render_inline("hello world"), vec![Span::plain("hello world")]);
+        assert_eq!(
+            render_inline("hello world"),
+            vec![Span::plain("hello world")]
+        );
     }
 
     #[test]
@@ -129,7 +152,11 @@ mod tests {
             render_inline("a **b** c"),
             vec![
                 Span::plain("a "),
-                Span { text: "b".into(), bold: true, ..Default::default() },
+                Span {
+                    text: "b".into(),
+                    bold: true,
+                    ..Default::default()
+                },
                 Span::plain(" c"),
             ]
         );
@@ -137,7 +164,11 @@ mod tests {
             render_inline("x `code` y"),
             vec![
                 Span::plain("x "),
-                Span { text: "code".into(), code: true, ..Default::default() },
+                Span {
+                    text: "code".into(),
+                    code: true,
+                    ..Default::default()
+                },
                 Span::plain(" y"),
             ]
         );
@@ -149,7 +180,11 @@ mod tests {
             render_inline("see [docs](https://example.com) ok"),
             vec![
                 Span::plain("see "),
-                Span { text: "docs".into(), link: Some("https://example.com".into()), ..Default::default() },
+                Span {
+                    text: "docs".into(),
+                    link: Some("https://example.com".into()),
+                    ..Default::default()
+                },
                 Span::plain(" ok"),
             ]
         );
@@ -159,11 +194,19 @@ mod tests {
     fn italic_asterisk_and_underscore() {
         assert_eq!(
             render_inline("*it*"),
-            vec![Span { text: "it".into(), italic: true, ..Default::default() }]
+            vec![Span {
+                text: "it".into(),
+                italic: true,
+                ..Default::default()
+            }]
         );
         assert_eq!(
             render_inline("_it_"),
-            vec![Span { text: "it".into(), italic: true, ..Default::default() }]
+            vec![Span {
+                text: "it".into(),
+                italic: true,
+                ..Default::default()
+            }]
         );
     }
 
@@ -171,7 +214,11 @@ mod tests {
     fn strikethrough() {
         assert_eq!(
             render_inline("~~deleted~~"),
-            vec![Span { text: "deleted".into(), strike: true, ..Default::default() }]
+            vec![Span {
+                text: "deleted".into(),
+                strike: true,
+                ..Default::default()
+            }]
         );
     }
 
@@ -179,7 +226,11 @@ mod tests {
     fn highlight() {
         assert_eq!(
             render_inline("==marked=="),
-            vec![Span { text: "marked".into(), highlight: true, ..Default::default() }]
+            vec![Span {
+                text: "marked".into(),
+                highlight: true,
+                ..Default::default()
+            }]
         );
     }
 
@@ -195,15 +246,27 @@ mod tests {
     fn code_protects_inner_markup() {
         assert_eq!(
             render_inline("`a*b*c`"),
-            vec![Span { text: "a*b*c".into(), code: true, ..Default::default() }]
+            vec![Span {
+                text: "a*b*c".into(),
+                code: true,
+                ..Default::default()
+            }]
         );
         assert_eq!(
             render_inline("`~~raw~~`"),
-            vec![Span { text: "~~raw~~".into(), code: true, ..Default::default() }]
+            vec![Span {
+                text: "~~raw~~".into(),
+                code: true,
+                ..Default::default()
+            }]
         );
         assert_eq!(
             render_inline("`==raw==`"),
-            vec![Span { text: "==raw==".into(), code: true, ..Default::default() }]
+            vec![Span {
+                text: "==raw==".into(),
+                code: true,
+                ..Default::default()
+            }]
         );
     }
 
@@ -212,9 +275,17 @@ mod tests {
         assert_eq!(
             render_inline("**bold** and ~~strike~~"),
             vec![
-                Span { text: "bold".into(), bold: true, ..Default::default() },
+                Span {
+                    text: "bold".into(),
+                    bold: true,
+                    ..Default::default()
+                },
                 Span::plain(" and "),
-                Span { text: "strike".into(), strike: true, ..Default::default() },
+                Span {
+                    text: "strike".into(),
+                    strike: true,
+                    ..Default::default()
+                },
             ]
         );
     }

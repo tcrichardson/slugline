@@ -1,4 +1,4 @@
-use super::state::{clamp_cursor, push_undo, Cursor, EditorState, Mode};
+use super::state::{Cursor, EditorState, Mode, clamp_cursor, push_undo};
 
 fn char_len(s: &str) -> usize {
     s.chars().count()
@@ -17,14 +17,24 @@ pub fn enter_insert(s: &EditorState) -> EditorState {
 }
 pub fn enter_insert_after(s: &EditorState) -> EditorState {
     let mut ns = push_undo(s);
-    let len = char_len(ns.lines.get(ns.cursor.line).map(String::as_str).unwrap_or(""));
+    let len = char_len(
+        ns.lines
+            .get(ns.cursor.line)
+            .map(String::as_str)
+            .unwrap_or(""),
+    );
     ns.mode = Mode::Insert;
     ns.cursor.col = (ns.cursor.col + if len > 0 { 1 } else { 0 }).min(len);
     ns
 }
 pub fn enter_insert_line_end(s: &EditorState) -> EditorState {
     let mut ns = push_undo(s);
-    let len = char_len(ns.lines.get(ns.cursor.line).map(String::as_str).unwrap_or(""));
+    let len = char_len(
+        ns.lines
+            .get(ns.cursor.line)
+            .map(String::as_str)
+            .unwrap_or(""),
+    );
     ns.mode = Mode::Insert;
     ns.cursor.col = len;
     ns
@@ -33,7 +43,10 @@ pub fn open_below(s: &EditorState) -> EditorState {
     let mut ns = push_undo(s);
     ns.lines.insert(ns.cursor.line + 1, String::new());
     ns.mode = Mode::Insert;
-    ns.cursor = Cursor { line: ns.cursor.line + 1, col: 0 };
+    ns.cursor = Cursor {
+        line: ns.cursor.line + 1,
+        col: 0,
+    };
     ns
 }
 pub fn open_above(s: &EditorState) -> EditorState {
@@ -66,8 +79,12 @@ pub fn insert_newline(s: &EditorState) -> EditorState {
     let text = s.lines.get(s.cursor.line).cloned().unwrap_or_default();
     let (before, after) = split_at_col(&text, s.cursor.col);
     let mut ns = s.clone();
-    ns.lines.splice(s.cursor.line..=s.cursor.line, [before, after]);
-    ns.cursor = Cursor { line: s.cursor.line + 1, col: 0 };
+    ns.lines
+        .splice(s.cursor.line..=s.cursor.line, [before, after]);
+    ns.cursor = Cursor {
+        line: s.cursor.line + 1,
+        col: 0,
+    };
     ns
 }
 pub fn backspace(s: &EditorState) -> EditorState {
@@ -87,13 +104,22 @@ pub fn backspace(s: &EditorState) -> EditorState {
         let merged = format!("{prev}{}", s.lines[line]);
         let mut ns = s.clone();
         ns.lines.splice(line - 1..=line, [merged]);
-        ns.cursor = Cursor { line: line - 1, col: prev_len };
+        ns.cursor = Cursor {
+            line: line - 1,
+            col: prev_len,
+        };
         return ns;
     }
     s.clone()
 }
 pub fn delete_word_before(s: &EditorState) -> EditorState {
-    let chars: Vec<char> = s.lines.get(s.cursor.line).cloned().unwrap_or_default().chars().collect();
+    let chars: Vec<char> = s
+        .lines
+        .get(s.cursor.line)
+        .cloned()
+        .unwrap_or_default()
+        .chars()
+        .collect();
     let col = s.cursor.col.min(chars.len());
     let mut i = col;
     while i > 0 && chars[i - 1].is_whitespace() {
