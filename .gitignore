@@ -1,6 +1,7 @@
 /target
 /web/dist
 /web/node_modules
-/dev-notes.superpowers/
+/dev-notes
+/.superpowers/
 /.worktrees/
 /.complexity
