@@ -34,24 +34,23 @@ pub fn render_inline(text: &str) -> Vec<Span> {
 
     while i < chars.len() {
         // Code span: `...` (protects its contents from further parsing).
-        if chars[i] == '`' {
-            if let Some(end) = find(&chars, i + 1, '`') {
-                flush_plain!();
-                spans.push(Span { text: chars[i + 1..end].iter().collect(), code: true, ..Default::default() });
-                i = end + 1;
-                continue;
-            }
+        if chars[i] == '`'
+            && let Some(end) = find(&chars, i + 1, '`')
+        {
+            flush_plain!();
+            spans.push(Span { text: chars[i + 1..end].iter().collect(), code: true, ..Default::default() });
+            i = end + 1;
+            continue;
         }
         // Link: [label](url), safe schemes only.
-        if chars[i] == '[' {
-            if let Some((label, url, next)) = parse_link(&chars, i) {
-                if SAFE_SCHEMES.iter().any(|s| url.starts_with(s)) {
-                    flush_plain!();
-                    spans.push(Span { text: label, link: Some(url), ..Default::default() });
-                    i = next;
-                    continue;
-                }
-            }
+        if chars[i] == '['
+            && let Some((label, url, next)) = parse_link(&chars, i)
+            && SAFE_SCHEMES.iter().any(|s| url.starts_with(s))
+        {
+            flush_plain!();
+            spans.push(Span { text: label, link: Some(url), ..Default::default() });
+            i = next;
+            continue;
         }
         // Emphasis, longest delimiter first.
         if let Some((delim, bold, italic, strike, highlight)) = emphasis_at(&chars, i) {
