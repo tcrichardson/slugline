@@ -5,3 +5,8 @@ edition.workspace = true
 
 [dependencies]
 slugline-core = { path = "../slugline-core" }
+iced = "0.13"
+clap = { version = "4.6.1", features = ["derive"] }
+
+[dev-dependencies]
+dirs = "6.0.0"
