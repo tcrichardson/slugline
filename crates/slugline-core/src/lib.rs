@@ -5,3 +5,4 @@ pub mod dates;
 pub mod doc;
 pub mod editor;
 pub mod store;
+pub mod tabs;
