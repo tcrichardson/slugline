@@ -1,0 +1,7 @@
+[package]
+name = "slugline"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+slugline-core = { path = "../slugline-core" }

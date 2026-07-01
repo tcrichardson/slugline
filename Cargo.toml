@@ -1,24 +1,10 @@
-[package]
-name = "slugline"
+[workspace]
+resolver = "2"
+members = ["crates/slugline-core", "crates/slugline"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
-
-[dependencies]
-axum = "^0.8"
-clap = { version = "4.6.1", features = ["derive"] }
-dirs = "6.0.0"
-mime_guess = "2.0.5"
-open = "5.3.5"
-rust-embed = "8.11.0"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.150"
-tokio = { version = "1.52.3", features = ["full"] }
-toml = "1.1.2"
-toml_edit = "0.25"
-
-[dev-dependencies]
-tempfile = "3.27.0"
-tower = { version = "0.5.3", features = ["util"] }
 
 [profile.release]
 opt-level = 3
