@@ -3162,6 +3162,7 @@ dependencies = [
  "iced",
  "slugline-core",
  "smol_str",
+ "tempfile",
 ]
 
 [[package]]
