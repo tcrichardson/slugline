@@ -56,6 +56,15 @@ export type ValidationResult =
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+/** One validator per ArgKind. Returns an error message, or null if `arg` is valid for that kind. */
+const ARG_VALIDATORS: Record<ArgKind, (arg: string) => string | null> = {
+  none: () => null,
+  text: () => null,
+  time: (arg) => (TIME.test(arg) ? null : 'Expected HH:MM'),
+  date: (arg) => (isValidDate(arg) ? null : 'Expected YYYY-MM-DD'),
+  theme: (arg) => (arg === '' || arg === 'light' || arg === 'dark' ? null : 'Expected light or dark'),
+};
+
 export function validateCommand(input: string): ValidationResult {
   const { name, arg } = parseCommandLine(input);
   const resolved = ALIASES[name] ?? name;
@@ -63,11 +72,8 @@ export function validateCommand(input: string): ValidationResult {
   const spec = COMMANDS[resolved as CommandName];
 
   if (spec.argRequired && arg === '') return { ok: false, error: `:${name} requires an argument` };
-  if (spec.argKind === 'time' && !TIME.test(arg)) return { ok: false, error: 'Expected HH:MM' };
-  if (spec.argKind === 'date' && !isValidDate(arg)) return { ok: false, error: 'Expected YYYY-MM-DD' };
-  if (spec.argKind === 'theme' && arg !== '' && arg !== 'light' && arg !== 'dark') {
-    return { ok: false, error: 'Expected light or dark' };
-  }
+  const error = ARG_VALIDATORS[spec.argKind](arg);
+  if (error) return { ok: false, error };
 
   return { ok: true, command: spec.name, arg };
 }
