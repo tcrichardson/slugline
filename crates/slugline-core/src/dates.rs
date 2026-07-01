@@ -14,6 +14,9 @@ mod tests {
     fn today_iso_is_a_valid_yyyy_mm_dd() {
         let t = today_iso();
         assert_eq!(t.len(), 10, "expected YYYY-MM-DD, got {t:?}");
-        assert!(is_valid_date(&t), "today_iso() produced an invalid date: {t:?}");
+        assert!(
+            is_valid_date(&t),
+            "today_iso() produced an invalid date: {t:?}"
+        );
     }
 }

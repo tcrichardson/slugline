@@ -44,7 +44,11 @@ impl App {
         }
         for line in &self.lines {
             // Render each raw line in monospace. Empty lines get a space so they keep height.
-            let display = if line.is_empty() { " ".to_string() } else { line.clone() };
+            let display = if line.is_empty() {
+                " ".to_string()
+            } else {
+                line.clone()
+            };
             col = col.push(text(display).font(Font::MONOSPACE));
         }
         scrollable(container(col).width(Length::Fill)).into()

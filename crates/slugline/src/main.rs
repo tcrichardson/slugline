@@ -6,10 +6,10 @@ use iced::Task;
 
 use slugline_core::config::{default_config_path, load_or_create};
 use slugline_core::dates::today_iso;
-use slugline_core::store::{ensure_writable_dir, NotesStore};
+use slugline_core::store::{NotesStore, ensure_writable_dir};
 
 use crate::app::App;
-use crate::cli::{resolve, Cli};
+use crate::cli::{Cli, resolve};
 
 pub fn main() -> iced::Result {
     let cli = Cli::parse();

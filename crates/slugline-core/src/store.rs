@@ -56,10 +56,10 @@ impl NotesStore {
             let entry = entry?;
             let name = entry.file_name();
             let Some(name) = name.to_str() else { continue };
-            if let Some(stem) = name.strip_suffix(".md") {
-                if is_valid_date(stem) {
-                    out.push(stem.to_string());
-                }
+            if let Some(stem) = name.strip_suffix(".md")
+                && is_valid_date(stem)
+            {
+                out.push(stem.to_string());
             }
         }
         out.sort();
@@ -162,7 +162,10 @@ mod tests {
         store.write("2026-06-21", "b").unwrap();
         std::fs::write(dir.path().join("README.md"), "x").unwrap();
         std::fs::write(dir.path().join("notes.txt"), "x").unwrap();
-        assert_eq!(store.list_dates().unwrap(), vec!["2026-06-21", "2026-06-23"]);
+        assert_eq!(
+            store.list_dates().unwrap(),
+            vec!["2026-06-21", "2026-06-23"]
+        );
     }
 
     #[test]

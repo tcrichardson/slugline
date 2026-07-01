@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use toml_edit::{DocumentMut, Item, Value};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default)]
     pub server: ServerConfig,
@@ -76,15 +76,6 @@ impl Default for UiConfig {
     }
 }
 
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            ui: UiConfig::default(),
-        }
-    }
-}
-
 impl Config {
     pub fn from_toml(s: &str) -> Result<Self, toml::de::Error> {
         toml::from_str(s)
@@ -93,10 +84,10 @@ impl Config {
 
 /// Expand a leading `~/` to the user's home directory.
 pub fn expand_tilde(p: &str) -> PathBuf {
-    if let Some(rest) = p.strip_prefix("~/") {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(rest);
-        }
+    if let Some(rest) = p.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest);
     }
     PathBuf::from(p)
 }
@@ -116,8 +107,7 @@ pub fn load_or_create(path: &Path) -> io::Result<Config> {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            let toml = toml::to_string_pretty(&cfg)
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            let toml = toml::to_string_pretty(&cfg).map_err(io::Error::other)?;
             fs::write(path, toml)?;
             Ok(cfg)
         }
@@ -143,8 +133,7 @@ pub fn update_theme(path: &Path, theme: &str) -> io::Result<()> {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent)?;
             }
-            toml::to_string_pretty(&Config::default())
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?
+            toml::to_string_pretty(&Config::default()).map_err(io::Error::other)?
         }
         Err(e) => return Err(e),
     };
@@ -181,7 +170,7 @@ mod tests {
     fn defaults_apply_when_fields_missing() {
         let cfg = Config::from_toml("").unwrap();
         assert_eq!(cfg.server.port, 4747);
-        assert_eq!(cfg.server.auto_open, true);
+        assert!(cfg.server.auto_open);
         assert_eq!(cfg.server.notes_dir, "~/Documents/Slugline");
         assert_eq!(cfg.ui.theme, "light");
         assert_eq!(cfg.ui.font, "Roboto");
@@ -203,7 +192,7 @@ mod tests {
         "##;
         let cfg = Config::from_toml(toml).unwrap();
         assert_eq!(cfg.server.port, 9000);
-        assert_eq!(cfg.server.auto_open, false);
+        assert!(!cfg.server.auto_open);
         assert_eq!(cfg.ui.theme, "dark");
         assert_eq!(cfg.ui.colors["dark"]["--bg"], "#101018");
     }
@@ -211,8 +200,14 @@ mod tests {
     #[test]
     fn expands_leading_tilde() {
         let home = dirs::home_dir().unwrap();
-        assert_eq!(expand_tilde("~/Documents/Slugline"), home.join("Documents/Slugline"));
-        assert_eq!(expand_tilde("/abs/path"), std::path::PathBuf::from("/abs/path"));
+        assert_eq!(
+            expand_tilde("~/Documents/Slugline"),
+            home.join("Documents/Slugline")
+        );
+        assert_eq!(
+            expand_tilde("/abs/path"),
+            std::path::PathBuf::from("/abs/path")
+        );
     }
 
     #[test]
