@@ -1,15 +1,19 @@
 # Slugline
 
-A single-user, local-first, keyboard-driven (vim-modal) daily notes app. Notes are stored as plain `YYYY-MM-DD.md` files on disk. The whole application ships as a single self-contained binary — no cloud, no dependencies at runtime.
+A single-user, local-first, keyboard-driven (vim-modal) daily notes app. Notes are stored as plain
+`YYYY-MM-DD.md` files on disk. Slugline is a native desktop app (Rust + [Iced](https://iced.rs))
+that ships as a single self-contained binary — no cloud, no browser, no runtime dependencies.
 
 ## Features
 
 - **Vim-modal editor** — NORMAL/INSERT modes, motions (`h j k l w b e 0 $ gg G`), edits (`x dd yy p P o O i a A`), undo/redo (`u` / `Ctrl-R`)
 - **Per-line rendering** — one raw edit line; all other lines render pretty (headings, tasks, lists, blockquotes, bold/italic/strikethrough/highlight/code/links)
 - **Tabs** — open multiple dates side-by-side (`gt` / `gT`, `:tab`, `:close`)
-- **Calendar sidebar** — dots on dates that have notes; click to open or create
-- **Agenda sidebar** — today's scheduled meetings and a 7-day to-do view
-- **Command line** — `:w`, `:goto`, `:today`, `:tab`, `:close`, `:theme`, `:meeting`, `:note`, `:section`, `:todo`, `:start`, `:end`, `:scheduled`, `:purpose`, `:topic`
+- **Resizable, collapsible sidebar** — calendar, agenda, and 7-day to-do view, dragged wider/narrower or collapsed to a slim rail
+- **Calendar** — dots on dates that have notes; click to open or create; month navigation
+- **Agenda** — today's scheduled meetings, click to jump to the meeting
+- **To Do** — a 7-day rolling view of open/done items across notes, click to jump to the item
+- **Command palette** — press `:` (or `⌘K` / `Ctrl+K`) for a fuzzy-searchable list of every command
 - **Themes** — built-in `light` (default) and `dark`; switch with `:theme dark` / `:theme light`, or just `:theme` to toggle. The choice is **saved to `config.toml`** (comment-preserving). Partial color overrides via `[ui.colors.<theme>]`.
 - **Offline fonts** — Roboto is bundled inside the binary; no network required
 
@@ -23,7 +27,7 @@ Slugline is a modal editor in the style of Vim. Keyboard input is interpreted di
 |------|-------------|-------------|
 | **Normal** | Default on open; `Escape` from Insert | — |
 | **Insert** | `i`, `a`, `A`, `o`, `O` | `Escape` |
-| **Command** | `:` from Normal | `Escape` to cancel, `Enter` to run |
+| **Command** | `:` from Normal, or `⌘K` / `Ctrl+K` from anywhere | `Escape` to cancel, `Enter` to run |
 
 The cursor changes shape: a block in Normal mode, an I-beam in Insert mode.
 
@@ -96,7 +100,9 @@ Insert mode behaves like a standard text editor.
 
 ### Command Mode
 
-Press `:` in Normal mode to open the command line at the bottom of the screen. Type a command and press `Enter`, or press `Escape` to cancel.
+Press `:` in Normal mode (or `⌘K` / `Ctrl+K` from either mode) to open the command palette: a
+fuzzy-searchable overlay of every command below. Type to filter, press `Enter` to run the top
+match (or a fully-typed command line), or press `Escape` to cancel.
 
 #### Navigation
 
@@ -121,6 +127,7 @@ Press `:` in Normal mode to open the command line at the bottom of the screen. T
 | `:note <name>` | Append a `### <name>` block under `## Notes` (creates section if absent) |
 | `:todo <text>` | Append `- [ ] <text>` to `## To Do`; if inside a meeting block, tags it with the meeting name |
 | `:section <name>` | Insert a sub-heading one level deeper than the heading at the cursor |
+| `:people <names>` / `:p <names>` | Add people to the meeting or note block at the cursor |
 
 #### Meeting Metadata
 
@@ -154,7 +161,7 @@ These commands must be run with the cursor inside a `### note` block.
 ## Quick Start
 
 ```sh
-# Run from source (auto-opens browser at http://127.0.0.1:4747)
+# Run from source (opens a native window)
 make dev
 
 # Production build → single binary
@@ -168,12 +175,10 @@ make dist
 slugline [OPTIONS]
 
 Options:
-  --notes-dir <PATH>   Notes directory (default: ~/Documents/Slugline)
-  --port <PORT>        Listen port (default: 4747)
-  --no-open            Don't auto-open the browser
-  --config <PATH>      Config file path
-  -V, --version        Print version
-  -h, --help           Print help
+      --notes-dir <PATH>   Notes directory (default: ~/Documents/Slugline)
+      --config <PATH>      Config file path
+  -V, --version            Print version
+  -h, --help               Print help
 ```
 
 ## Configuration
@@ -185,10 +190,8 @@ Slugline writes a default config on first launch:
 Example `config.toml`:
 
 ```toml
-[server]
+[notes]
 notes_dir = "~/Documents/Slugline"
-port = 4747
-auto_open = true
 
 [ui]
 theme = "dark"
@@ -204,73 +207,53 @@ Most config changes take effect on restart; the active theme is also written bac
 
 ## Development
 
-**Prerequisites:** Rust (stable), Node.js ≥ 18
+**Prerequisites:** Rust (stable)
 
 ```sh
-# Install frontend dependencies
-cd web && npm install
-
-# Run backend dev server (notes in ./dev-notes, no browser open)
+# Run with a throwaway notes dir
 make dev
 
-# Frontend dev server with HMR (proxies API to the Rust backend)
-make dev-web
-
-# Tests
-make test        # Rust unit tests (cargo test)
-make test-web    # TypeScript/Svelte unit tests (vitest)
-
-# Type-check frontend
-cd web && npm run check
+# Tests (whole workspace)
+make test
 
 # Format
-make fmt         # cargo fmt
-make fmt-web     # prettier
+make fmt
+
+# Lint
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 ## Project Structure
 
 ```
 slugline/
-├── src/                  # Rust backend (axum)
-│   ├── main.rs
-│   ├── app.rs            # HTTP handlers
-│   ├── assets.rs         # rust-embed SPA serving
-│   ├── cli.rs            # CLI argument parsing
-│   ├── config.rs         # TOML config loading
-│   ├── date.rs           # Date validation
-│   └── store.rs          # Filesystem note store
-├── web/                  # Svelte 5 + Vite frontend
-│   └── src/
-│       ├── lib/
-│       │   ├── doc/      # Document model (line classifier, scanner, renderer)
-│       │   ├── editor/   # Pure editor state machine (motions, edits, commands)
-│       │   ├── components/
-│       │   ├── api.ts    # API client
-│       │   ├── appState.svelte.ts  # App-wide store
-│       │   ├── theme.ts  # Theme token maps + applyTheme
-│       │   ├── agenda.ts
-│       │   └── todos.ts
-│       ├── App.svelte
-│       └── main.ts
-├── Cargo.toml
-├── Makefile
-└── plans/                # Implementation plans per phase
+├── crates/
+│   ├── slugline-core/       # headless domain logic, no UI dependency
+│   │   └── src/
+│   │       ├── agenda.rs    # scheduled-meeting derivation
+│   │       ├── config.rs    # TOML config loading + comment-preserving theme writes
+│   │       ├── date.rs      # date validation + weekday helper
+│   │       ├── dates.rs     # calendar month-grid math
+│   │       ├── doc/         # line classifier, inline-span renderer, scanner, commands
+│   │       ├── editor/      # vim-modal state machine (motions, edits, insert, keymap)
+│   │       ├── store.rs     # filesystem note store (atomic writes, materialize-on-open)
+│   │       ├── tabs.rs      # open-tabs state
+│   │       ├── theme.rs     # light/dark color token resolution
+│   │       └── todos.rs     # 7-day to-do aggregation
+│   └── slugline/            # the Iced desktop app
+│       └── src/
+│           ├── main.rs      # entry point, CLI wiring
+│           ├── app.rs       # Model/Message/update/view/subscription
+│           ├── cli.rs       # CLI argument parsing (clap)
+│           ├── keys.rs      # Iced key event -> keymap-string mapping
+│           ├── theme_iced.rs # theme tokens -> iced::Color
+│           └── ui/          # editor_pane, sidebar, calendar, agenda, todo_list,
+│                             # tab_strip, command_palette, status_line, toast
+├── docs/superpowers/         # design docs and implementation plans
+├── fixtures/                 # sample note files used by tests
+├── Cargo.toml                # workspace manifest
+└── Makefile
 ```
-
-## API
-
-The Rust server exposes a minimal filesystem API (all other routes serve the SPA):
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/notes` | List dates that have note files |
-| `GET` | `/api/notes/{date}` | Read a note (materializes empty template if missing) |
-| `PUT` | `/api/notes/{date}` | Write a note (atomic) |
-| `GET` | `/api/config` | Read the UI-relevant config subset |
-| `PUT` | `/api/config/theme` | Persist the active theme to `config.toml` |
-
-Dates must be `YYYY-MM-DD`. Invalid dates and path-traversal attempts return 400.
 
 ## Notes Format
 
