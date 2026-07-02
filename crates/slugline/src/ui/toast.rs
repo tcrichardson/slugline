@@ -9,9 +9,7 @@ use crate::app::Message;
 pub fn view<'a>(message: &str) -> Element<'a, Message> {
     let bar = container(
         row![
-            text(message.to_string())
-                .size(13)
-                .color(iced::Color::WHITE),
+            text(message.to_string()).size(13).color(iced::Color::WHITE),
             button(text("\u{d7}").size(15).color(iced::Color::WHITE))
                 .on_press(Message::DismissError)
                 .padding([0, 6])

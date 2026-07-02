@@ -5,5 +5,5 @@ pub mod editor_pane;
 pub mod sidebar;
 pub mod status_line;
 pub mod tab_strip;
-pub mod todo_list;
 pub mod toast;
+pub mod todo_list;
