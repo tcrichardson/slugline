@@ -1,11 +1,12 @@
 use std::time::{Duration, Instant};
 
-use iced::widget::{column, pane_grid, row};
+use iced::widget::{column, pane_grid, row, stack};
 use iced::{Element, Length, Subscription, Task, keyboard, time, window};
 
-use slugline_core::dates::{YearMonth, add_days, today_iso, year_month};
+use slugline_core::dates::{YearMonth, add_days, now_hhmm, today_iso, year_month};
 use slugline_core::editor::{
-    AppEffect, Cursor, EditorState, KeyInput, clamp_cursor, create_editor_state, handle_key,
+    AppEffect, CommandCtx, Cursor, EditorState, KeyInput, clamp_cursor, create_editor_state,
+    handle_key,
 };
 use slugline_core::store::NotesStore;
 use slugline_core::tabs::{
@@ -14,7 +15,7 @@ use slugline_core::tabs::{
 use slugline_core::todos::{TodoGroup, extract_todos, window_dates};
 
 use crate::keys::key_string;
-use crate::ui::{editor_pane, sidebar, tab_strip};
+use crate::ui::{command_palette, editor_pane, sidebar, tab_strip};
 
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(750);
 /// The sidebar's share of the window width when the app starts.
@@ -94,6 +95,16 @@ pub enum Message {
     /// An Agenda or To Do row was clicked: jump to `line` in `date`'s note, navigating
     /// there first if it isn't already active.
     OpenDateAndLine(String, usize),
+    /// `Cmd/Ctrl-K` was pressed: seed command mode from anywhere, mirroring what typing
+    /// `:` does in NORMAL mode (design Section 4). Bypasses `handle_key`/the vim keymap
+    /// entirely — this is a native-refined shortcut layered on top of the ported engine,
+    /// not part of it.
+    OpenPalette,
+    /// A command palette suggestion was clicked: seed the command buffer with that
+    /// command's name (plus a trailing space, ready for its argument) rather than
+    /// running it — matches typing the name and leaves `Enter` as the one path that
+    /// invokes `run_command`.
+    PaletteSuggestionClicked(String),
 }
 
 /// Pure: shift a calendar month by `delta` months (may be negative), rolling over years.
@@ -290,7 +301,10 @@ impl App {
         match message {
             Message::Key(input) => {
                 let before = self.editor.lines.clone();
-                let result = handle_key(&self.editor, &input);
+                let ctx = CommandCtx {
+                    now_hhmm: now_hhmm(),
+                };
+                let result = handle_key(&self.editor, &input, &ctx);
                 self.editor = result.state;
                 self.shared_register = self.editor.register.clone();
                 if self.editor.lines != before {
@@ -423,11 +437,20 @@ impl App {
                 }
                 window::close(id)
             }
+            Message::OpenPalette => {
+                self.editor.command = Some(String::new());
+                self.editor.message = String::new();
+                Task::none()
+            }
+            Message::PaletteSuggestionClicked(name) => {
+                self.editor.command = Some(format!("{name} "));
+                Task::none()
+            }
         }
     }
 
     pub fn view(&self) -> Element<'_, Message> {
-        if self.sidebar_collapsed {
+        let base: Element<'_, Message> = if self.sidebar_collapsed {
             row![sidebar::collapsed_rail(), self.main_pane()]
                 .width(Length::Fill)
                 .height(Length::Fill)
@@ -450,6 +473,14 @@ impl App {
             .height(Length::Fill)
             .on_resize(6, Message::PaneResized)
             .into()
+        };
+
+        // The command palette overlay (design Section 4): floats on top of everything
+        // else whenever command mode is active (`:` or Cmd/Ctrl-K), and disappears the
+        // instant `editor.command` goes back to `None` (Escape, or Enter via `run_command`).
+        match &self.editor.command {
+            Some(typed) => stack![base, command_palette::view(typed)].into(),
+            None => base,
         }
     }
 
@@ -460,14 +491,16 @@ impl App {
     pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             keyboard::on_key_press(|key, mods| {
-                key_string(&key).map(|k| {
-                    Message::Key(KeyInput {
-                        key: k,
-                        ctrl: mods.control(),
-                        meta: mods.logo(),
-                        shift: mods.shift(),
-                    })
-                })
+                let k = key_string(&key)?;
+                if (mods.control() || mods.logo()) && (k == "k" || k == "K") {
+                    return Some(Message::OpenPalette);
+                }
+                Some(Message::Key(KeyInput {
+                    key: k,
+                    ctrl: mods.control(),
+                    meta: mods.logo(),
+                    shift: mods.shift(),
+                }))
             }),
             time::every(Duration::from_millis(250)).map(|_| Message::Tick),
             window::close_requests().map(Message::CloseRequested),
@@ -786,13 +819,17 @@ mod tests {
     }
 
     #[test]
-    fn saved_success_on_a_stale_date_is_ignored() {
+    fn open_palette_seeds_an_empty_command_from_any_state() {
         let (_dir, mut app) = temp_app("2026-06-23");
-        let before = app.last_saved.clone();
-        let _ = app.update(Message::Saved {
-            date: "2026-06-24".to_string(),
-            res: Ok("# stale\n".to_string()),
-        });
-        assert_eq!(app.last_saved, before);
+        assert_eq!(app.editor.command, None);
+        let _ = app.update(Message::OpenPalette);
+        assert_eq!(app.editor.command, Some(String::new()));
+    }
+
+    #[test]
+    fn palette_suggestion_clicked_seeds_the_command_with_a_trailing_space() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.update(Message::PaletteSuggestionClicked("meeting".to_string()));
+        assert_eq!(app.editor.command, Some("meeting ".to_string()));
     }
 }
