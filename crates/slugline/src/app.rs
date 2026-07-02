@@ -126,6 +126,14 @@ pub enum Message {
     /// running it — matches typing the name and leaves `Enter` as the one path that
     /// invokes `run_command`.
     PaletteSuggestionClicked(String),
+    /// The `update_theme` persistence write for a `:theme` switch finished. `target` is
+    /// the theme that was applied optimistically; `prev` is what to roll back to on
+    /// failure.
+    ThemePersisted {
+        target: String,
+        prev: String,
+        res: Result<(), String>,
+    },
 }
 
 /// Pure: shift a calendar month by `delta` months (may be negative), rolling over years.
@@ -235,7 +243,7 @@ impl App {
     fn run_effect(&mut self, effect: AppEffect) -> Task<Message> {
         match effect {
             AppEffect::Save => self.spawn_save(),
-            AppEffect::Theme(_) => Task::none(), // wired in Phase 6
+            AppEffect::Theme(arg) => self.switch_theme(arg),
             nav => {
                 let today = today_iso();
                 let active = self.active_date();
@@ -245,6 +253,42 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Apply a `:theme`/`:theme dark` command optimistically, then persist it. `arg` is
+    /// `""` (toggle via `next_theme`), `"light"`, or `"dark"` — `validate_command` already
+    /// rejected anything else before `run_command` ever produced this effect. Port of
+    /// design Section 5's "`:theme` flows effect -> `update` swaps `config.theme` ->
+    /// next `view` uses the new theme, and persists via ... `toml_edit` writer".
+    fn switch_theme(&mut self, arg: String) -> Task<Message> {
+        let prev = self.theme.clone();
+        let target = if arg.is_empty() {
+            slugline_core::theme::next_theme(&prev)
+        } else {
+            arg
+        };
+        if target == prev {
+            return Task::none();
+        }
+        self.theme = target.clone();
+        self.palette = Palette::for_theme(&self.theme, &self.color_overrides);
+
+        let path = self.config_path.clone();
+        let to_persist = target.clone();
+        Task::perform(
+            async move { update_theme(&path, &to_persist).map_err(|e| e.to_string()) },
+            move |res| Message::ThemePersisted {
+                target: target.clone(),
+                prev: prev.clone(),
+                res,
+            },
+        )
+    }
+
+    /// Set `error` (+ its 5s auto-dismiss expiry), matching the web's `setError`.
+    fn set_error(&mut self, message: String) {
+        self.error = Some(message);
+        self.error_expires_at = Some(Instant::now() + ERROR_TIMEOUT);
     }
 
     /// Flush the current buffer (if dirty) to its date, then load `new_tabs`' active date.
@@ -372,8 +416,7 @@ impl App {
                         }
                     }
                     Err(e) => {
-                        self.error =
-                            Some(format!("Save failed \u{2014} edits kept, will retry: {e}"));
+                        self.set_error(format!("Save failed \u{2014} edits kept, will retry: {e}"));
                         // dirty_since stays set, so the next Tick retries.
                     }
                 }
@@ -401,7 +444,7 @@ impl App {
                         // Don't apply a queued jump against a buffer that never arrived.
                         self.pending_jump_line = None;
                         let date = self.active_date();
-                        self.error = Some(format!("Failed to load note {date}: {e}"));
+                        self.set_error(format!("Failed to load note {date}: {e}"));
                         Task::none()
                     }
                 }
@@ -474,6 +517,19 @@ impl App {
             }
             Message::PaletteSuggestionClicked(name) => {
                 self.editor.command = Some(format!("{name} "));
+                Task::none()
+            }
+            Message::ThemePersisted { target, prev, res } => {
+                if let Err(e) = res {
+                    // Only roll back if we're still on the theme that failed to persist —
+                    // if the user has since switched again, rolling back would clobber
+                    // their newer choice.
+                    if self.theme == target {
+                        self.theme = prev;
+                        self.palette = Palette::for_theme(&self.theme, &self.color_overrides);
+                    }
+                    self.set_error(format!("Failed to save theme: {e}"));
+                }
                 Task::none()
             }
         }
@@ -868,5 +924,64 @@ mod tests {
         let (_dir, mut app) = temp_app("2026-06-23");
         let _ = app.update(Message::PaletteSuggestionClicked("meeting".to_string()));
         assert_eq!(app.editor.command, Some("meeting ".to_string()));
+    }
+
+    #[test]
+    fn theme_effect_with_empty_arg_toggles_to_the_opposite_theme() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        assert_eq!(app.theme, "light");
+        let _ = app.run_effect(AppEffect::Theme(String::new()));
+        assert_eq!(app.theme, "dark");
+        assert_eq!(
+            app.palette.bg,
+            Palette::for_theme("dark", &app.color_overrides).bg
+        );
+    }
+
+    #[test]
+    fn theme_effect_with_an_explicit_arg_sets_that_theme() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.run_effect(AppEffect::Theme("dark".to_string()));
+        assert_eq!(app.theme, "dark");
+    }
+
+    #[test]
+    fn theme_effect_to_the_current_theme_is_a_noop() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let before = app.palette;
+        let _ = app.run_effect(AppEffect::Theme("light".to_string()));
+        assert_eq!(app.theme, "light");
+        assert_eq!(app.palette, before);
+    }
+
+    #[test]
+    fn theme_persisted_failure_rolls_back_to_the_previous_theme() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.run_effect(AppEffect::Theme("dark".to_string()));
+        assert_eq!(app.theme, "dark");
+        let _ = app.update(Message::ThemePersisted {
+            target: "dark".to_string(),
+            prev: "light".to_string(),
+            res: Err("disk full".to_string()),
+        });
+        assert_eq!(app.theme, "light");
+        assert_eq!(
+            app.palette.bg,
+            Palette::for_theme("light", &app.color_overrides).bg
+        );
+        assert!(app.error.unwrap().contains("Failed to save theme"));
+    }
+
+    #[test]
+    fn theme_persisted_failure_does_not_roll_back_a_since_changed_theme() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.run_effect(AppEffect::Theme("dark".to_string()));
+        let _ = app.run_effect(AppEffect::Theme("light".to_string())); // user switched again
+        let _ = app.update(Message::ThemePersisted {
+            target: "dark".to_string(), // the stale, now-superseded persistence result
+            prev: "light".to_string(),
+            res: Err("disk full".to_string()),
+        });
+        assert_eq!(app.theme, "light"); // untouched by the stale rollback
     }
 }
