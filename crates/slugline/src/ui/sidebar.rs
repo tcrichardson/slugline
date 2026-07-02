@@ -1,19 +1,22 @@
-use iced::widget::{button, column, container, row, text};
+use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
 
 use slugline_core::dates::YearMonth;
+use slugline_core::todos::TodoGroup;
 
 use crate::app::Message;
-use crate::ui::calendar;
+use crate::ui::{agenda, calendar, todo_list};
 
-/// The sidebar pane: a collapse header followed by the calendar section.
-/// Additional sections (agenda, todos) land in Phase 4, stacked below the
-/// calendar in this same column. Port of `web/src/lib/components/Sidebar.svelte`.
+/// The sidebar pane: a collapse header followed by the calendar, agenda, and to-do
+/// sections, stacked and independently scrollable. Port of
+/// `web/src/lib/components/Sidebar.svelte`.
 pub fn view<'a>(
     calendar_month: YearMonth,
     today: &str,
     active: &str,
     notes_with_files: &[String],
+    lines: &[String],
+    todo_groups: &[TodoGroup],
 ) -> Element<'a, Message> {
     let header = row![
         container(text("Slugline").size(13)).width(Length::Fill),
@@ -24,12 +27,16 @@ pub fn view<'a>(
     .align_y(Alignment::Center)
     .padding([8, 10]);
 
-    column![
-        header,
+    let body = column![
         calendar::view(calendar_month, today, active, notes_with_files),
+        agenda::view(lines, active),
+        todo_list::view(todo_groups),
     ]
-    .width(Length::Fill)
-    .into()
+    .width(Length::Fill);
+
+    column![header, scrollable(body).height(Length::Fill)]
+        .width(Length::Fill)
+        .into()
 }
 
 /// The slim rail shown instead of the sidebar when it is collapsed.

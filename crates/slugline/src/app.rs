@@ -4,11 +4,14 @@ use iced::widget::{column, pane_grid, row};
 use iced::{Element, Length, Subscription, Task, keyboard, time, window};
 
 use slugline_core::dates::{YearMonth, add_days, today_iso, year_month};
-use slugline_core::editor::{AppEffect, EditorState, KeyInput, create_editor_state, handle_key};
+use slugline_core::editor::{
+    AppEffect, Cursor, EditorState, KeyInput, clamp_cursor, create_editor_state, handle_key,
+};
 use slugline_core::store::NotesStore;
 use slugline_core::tabs::{
     TabsState, active_date, close_tab, init_tabs, next_tab, open_new_tab, prev_tab, retarget,
 };
+use slugline_core::todos::{TodoGroup, extract_todos, window_dates};
 
 use crate::keys::key_string;
 use crate::ui::{editor_pane, sidebar, tab_strip};
@@ -41,6 +44,17 @@ pub struct App {
     calendar: YearMonth,
     /// Dates (`YYYY-MM-DD`) with a note file on disk, for the calendar's has-note dots.
     notes_with_files: Vec<String>,
+    /// The 7-day To Do aggregation shown in the sidebar (dates that have at least one
+    /// todo, most-recent first). Unlike the calendar's dots, this is not derived at
+    /// render time: it requires reading several files off disk, so it is refreshed via
+    /// a `Task` (`refresh_todos_task`) instead. The Agenda section, by contrast, is
+    /// derived fresh from `editor.lines` on every `view()` call — it never needs disk
+    /// I/O beyond the note already open, so it carries no Model state of its own.
+    todo_groups: Vec<TodoGroup>,
+    /// Set by `OpenDateAndLine` when the target date differs from the active one:
+    /// the cursor jump can't be applied until after the pending `navigate()` finishes
+    /// and rebuilds `editor` (which resets the cursor to `0,0`).
+    pending_jump_line: Option<usize>,
     /// The sidebar | main split.
     panes: pane_grid::State<PaneKind>,
     /// True when the whole sidebar is collapsed to a slim rail.
@@ -71,10 +85,15 @@ pub enum Message {
     OpenDate(String),
     /// The store's list of dated note files finished loading (has-note dots).
     NotesListed(Vec<String>),
+    /// The 7-day To Do aggregation finished reading from disk.
+    TodosRefreshed(Vec<TodoGroup>),
     PrevMonth,
     NextMonth,
     PaneResized(pane_grid::ResizeEvent),
     ToggleSidebar,
+    /// An Agenda or To Do row was clicked: jump to `line` in `date`'s note, navigating
+    /// there first if it isn't already active.
+    OpenDateAndLine(String, usize),
 }
 
 /// Pure: shift a calendar month by `delta` months (may be negative), rolling over years.
@@ -86,6 +105,17 @@ fn shift_month(ym: YearMonth, delta: i32) -> YearMonth {
         year: ym.year + total.div_euclid(12),
         month: (total.rem_euclid(12) + 1) as u32,
     }
+}
+
+/// Pure: which of the 7-day To Do window's dates should be read from disk when
+/// refreshing the aggregation — `active` always, plus any other date that already has
+/// a materialized note file. Mirrors the web's inline filter in `refreshTodos`
+/// (`appState.svelte.ts`): "never materialize other days" just to check them for todos.
+fn todo_dates_to_read(active: &str, notes_with_files: &[String]) -> Vec<String> {
+    window_dates(active, 7)
+        .into_iter()
+        .filter(|d| d == active || notes_with_files.contains(d))
+        .collect()
 }
 
 /// Pure: compute the new tab set for a navigation effect. `active`/`today` are injected so
@@ -129,6 +159,8 @@ impl App {
             loading: false,
             calendar: year_month(&date),
             notes_with_files: Vec::new(),
+            todo_groups: Vec::new(),
+            pending_jump_line: None,
             panes,
             sidebar_collapsed: false,
             error,
@@ -206,6 +238,28 @@ impl App {
         )
     }
 
+    /// Refresh the sidebar's 7-day To Do aggregation from disk.
+    fn refresh_todos_task(&self) -> Task<Message> {
+        let store = self.store.clone();
+        let dates = todo_dates_to_read(&self.active_date(), &self.notes_with_files);
+        Task::perform(
+            async move {
+                let mut groups = Vec::new();
+                for date in dates {
+                    if let Ok(content) = store.read_or_create(&date) {
+                        let lines: Vec<String> = content.lines().map(str::to_string).collect();
+                        let todos = extract_todos(&lines);
+                        if !todos.is_empty() {
+                            groups.push(TodoGroup { date, todos });
+                        }
+                    }
+                }
+                groups
+            },
+            Message::TodosRefreshed,
+        )
+    }
+
     /// Spawn an atomic save of the current buffer to the active date.
     fn spawn_save(&mut self) -> Task<Message> {
         if self.saving {
@@ -270,6 +324,7 @@ impl App {
                             if self.content() == self.last_saved {
                                 self.dirty_since = None;
                             }
+                            return self.refresh_todos_task();
                         }
                     }
                     Err(e) => {
@@ -292,9 +347,15 @@ impl App {
                         self.last_saved = content;
                         self.dirty_since = None;
                         self.calendar = year_month(&self.active_date());
+                        if let Some(line) = self.pending_jump_line.take() {
+                            self.editor.cursor = Cursor { line, col: 0 };
+                            self.editor = clamp_cursor(&self.editor);
+                        }
                         self.list_notes_task()
                     }
                     Err(e) => {
+                        // Don't apply a queued jump against a buffer that never arrived.
+                        self.pending_jump_line = None;
                         let date = self.active_date();
                         self.error = Some(format!("Failed to load note {date}: {e}"));
                         Task::none()
@@ -307,8 +368,21 @@ impl App {
                 }
                 self.navigate(retarget(&self.tabs, &date))
             }
+            Message::OpenDateAndLine(date, line) => {
+                if date == self.active_date() {
+                    self.editor.cursor = Cursor { line, col: 0 };
+                    self.editor = clamp_cursor(&self.editor);
+                    return Task::none();
+                }
+                self.pending_jump_line = Some(line);
+                self.navigate(retarget(&self.tabs, &date))
+            }
             Message::NotesListed(dates) => {
                 self.notes_with_files = dates;
+                self.refresh_todos_task()
+            }
+            Message::TodosRefreshed(groups) => {
+                self.todo_groups = groups;
                 Task::none()
             }
             Message::PrevMonth => {
@@ -366,6 +440,8 @@ impl App {
                         &today_iso(),
                         &self.active_date(),
                         &self.notes_with_files,
+                        &self.editor.lines,
+                        &self.todo_groups,
                     ),
                     PaneKind::Main => self.main_pane(),
                 })
@@ -627,5 +703,96 @@ mod tests {
         let _ = app.update(Message::SwitchTab(0));
         assert_eq!(app.tabs, before);
         assert!(!app.loading); // no navigation was kicked off
+    }
+
+    #[test]
+    fn todo_dates_to_read_always_includes_active_and_known_files() {
+        let existing = vec!["2026-06-20".to_string(), "2026-06-23".to_string()];
+        let dates = todo_dates_to_read("2026-06-23", &existing);
+        // 2026-06-23 (active, always) and 2026-06-20 (has a file); the other 5 days in
+        // the window have neither property and are skipped.
+        assert_eq!(
+            dates,
+            vec!["2026-06-23".to_string(), "2026-06-20".to_string()]
+        );
+    }
+
+    #[test]
+    fn todo_dates_to_read_includes_the_active_date_even_without_a_file() {
+        let dates = todo_dates_to_read("2026-06-23", &[]);
+        assert_eq!(dates, vec!["2026-06-23".to_string()]);
+    }
+
+    #[test]
+    fn todos_refreshed_replaces_the_todo_groups() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let groups = vec![TodoGroup {
+            date: "2026-06-23".to_string(),
+            todos: Vec::new(),
+        }];
+        let _ = app.update(Message::TodosRefreshed(groups.clone()));
+        assert_eq!(app.todo_groups, groups);
+    }
+
+    #[test]
+    fn open_date_and_line_on_the_active_date_jumps_the_cursor_without_navigating() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.update(Message::OpenDateAndLine("2026-06-23".to_string(), 2));
+        assert_eq!(app.editor.cursor.line, 2);
+        assert!(!app.loading);
+    }
+
+    #[test]
+    fn open_date_and_line_to_a_new_date_navigates_and_queues_the_jump() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.update(Message::OpenDateAndLine("2026-06-24".to_string(), 3));
+        assert!(app.loading);
+        assert_eq!(app.pending_jump_line, Some(3));
+    }
+
+    #[test]
+    fn navigated_applies_a_pending_jump_line() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        app.pending_jump_line = Some(2);
+        let tabs = init_tabs("2026-06-24");
+        let _ = app.update(Message::Navigated {
+            tabs,
+            body: Ok("# a\n## To Do\nfoo\n".to_string()),
+        });
+        assert_eq!(app.editor.cursor.line, 2);
+        assert_eq!(app.pending_jump_line, None);
+    }
+
+    #[test]
+    fn navigated_error_clears_a_pending_jump_line() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        app.pending_jump_line = Some(2);
+        let tabs = init_tabs("2026-06-24");
+        let _ = app.update(Message::Navigated {
+            tabs,
+            body: Err("boom".to_string()),
+        });
+        assert_eq!(app.pending_jump_line, None);
+    }
+
+    #[test]
+    fn saved_success_on_the_active_date_updates_last_saved() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let _ = app.update(Message::Saved {
+            date: "2026-06-23".to_string(),
+            res: Ok("# updated\n".to_string()),
+        });
+        assert_eq!(app.last_saved, "# updated\n");
+    }
+
+    #[test]
+    fn saved_success_on_a_stale_date_is_ignored() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        let before = app.last_saved.clone();
+        let _ = app.update(Message::Saved {
+            date: "2026-06-24".to_string(),
+            res: Ok("# stale\n".to_string()),
+        });
+        assert_eq!(app.last_saved, before);
     }
 }
