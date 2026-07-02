@@ -7,4 +7,5 @@ pub mod doc;
 pub mod editor;
 pub mod store;
 pub mod tabs;
+pub mod theme;
 pub mod todos;
