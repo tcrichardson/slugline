@@ -21,6 +21,7 @@ pub const HIGHLIGHT_BG: Color = hex(0x713f12);
 pub const LINK: Color = hex(0x2f6df6);
 pub const TODO_DONE: Color = hex(0x8a93a3);
 pub const BLOCKQUOTE_BORDER: Color = hex(0x3b82f6);
+pub const ACCENT: Color = hex(0x2f6df6);
 
 /// Heading colors h1..h6.
 pub const HEADING: [Color; 6] = [

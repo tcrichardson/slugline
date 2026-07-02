@@ -4,7 +4,6 @@ mod keys;
 mod ui;
 
 use clap::Parser;
-use iced::Task;
 
 use slugline_core::config::{default_config_path, load_or_create};
 use slugline_core::dates::today_iso;
@@ -36,5 +35,9 @@ pub fn main() -> iced::Result {
 
     iced::application(App::title, App::update, App::view)
         .subscription(App::subscription)
-        .run_with(move || (App::new(store.clone(), date.clone()), Task::none()))
+        .run_with(move || {
+            let app = App::new(store.clone(), date.clone());
+            let boot = app.boot();
+            (app, boot)
+        })
 }
