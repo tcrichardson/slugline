@@ -5,6 +5,13 @@ pub fn today_iso() -> String {
     Local::now().format("%Y-%m-%d").to_string()
 }
 
+/// The current local time, formatted `HH:MM` (24-hour, zero-padded). Feeds `CommandCtx`
+/// for `:start`/`:end`, mirroring the web's inline `nowHHMM(this.now)` in
+/// `appState.svelte.ts`.
+pub fn now_hhmm() -> String {
+    Local::now().format("%H:%M").to_string()
+}
+
 /// Add `n` days (may be negative) to an ISO `YYYY-MM-DD` date, returning a new ISO date.
 /// On any parse/overflow failure the input is returned unchanged (callers always pass
 /// validated dates, so this is a safety net rather than an expected path).
@@ -83,6 +90,13 @@ mod tests {
             is_valid_date(&t),
             "today_iso() produced an invalid date: {t:?}"
         );
+    }
+
+    #[test]
+    fn now_hhmm_is_zero_padded_hh_mm() {
+        let t = now_hhmm();
+        let re = regex::Regex::new(r"^([01]\d|2[0-3]):[0-5]\d$").unwrap();
+        assert!(re.is_match(&t), "expected HH:MM, got {t:?}");
     }
 
     #[test]
