@@ -1,6 +1,7 @@
 mod app;
 mod cli;
 mod keys;
+mod theme_iced;
 mod ui;
 
 use clap::Parser;
