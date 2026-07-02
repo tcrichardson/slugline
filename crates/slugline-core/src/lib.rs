@@ -1,4 +1,5 @@
 //! Slugline core: headless domain logic (no UI framework dependency).
+pub mod agenda;
 pub mod config;
 pub mod date;
 pub mod dates;
