@@ -9,19 +9,18 @@ use toml_edit::{DocumentMut, Item, Value};
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Config {
     #[serde(default)]
-    pub server: ServerConfig,
+    pub notes: NotesConfig,
     #[serde(default)]
     pub ui: UiConfig,
 }
 
+/// Where notes live on disk. Was `ServerConfig` (with `port`/`auto_open`) back when Slugline
+/// had an axum HTTP server; the part that remains is a desktop app with no server, so this
+/// struct now holds exactly the one field that's still meaningful.
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ServerConfig {
+pub struct NotesConfig {
     #[serde(default = "default_notes_dir")]
     pub notes_dir: String,
-    #[serde(default = "default_port")]
-    pub port: u16,
-    #[serde(default = "default_true")]
-    pub auto_open: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -39,12 +38,6 @@ pub struct UiConfig {
 fn default_notes_dir() -> String {
     "~/Documents/Slugline".to_string()
 }
-fn default_port() -> u16 {
-    4747
-}
-fn default_true() -> bool {
-    true
-}
 fn default_theme() -> String {
     "light".to_string()
 }
@@ -55,12 +48,10 @@ fn default_edit_line_position() -> f32 {
     0.5
 }
 
-impl Default for ServerConfig {
+impl Default for NotesConfig {
     fn default() -> Self {
         Self {
             notes_dir: default_notes_dir(),
-            port: default_port(),
-            auto_open: default_true(),
         }
     }
 }
@@ -115,15 +106,6 @@ pub fn load_or_create(path: &Path) -> io::Result<Config> {
     }
 }
 
-/// Read just the UI config subset from `path`, falling back to defaults on any error.
-pub fn read_ui(path: &Path) -> UiConfig {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|s| Config::from_toml(&s).ok())
-        .map(|c| c.ui)
-        .unwrap_or_default()
-}
-
 /// Surgically set `ui.theme` in the TOML at `path`, preserving comments and
 /// formatting. Creates the file with defaults first if it does not exist.
 pub fn update_theme(path: &Path, theme: &str) -> io::Result<()> {
@@ -169,9 +151,7 @@ mod tests {
     #[test]
     fn defaults_apply_when_fields_missing() {
         let cfg = Config::from_toml("").unwrap();
-        assert_eq!(cfg.server.port, 4747);
-        assert!(cfg.server.auto_open);
-        assert_eq!(cfg.server.notes_dir, "~/Documents/Slugline");
+        assert_eq!(cfg.notes.notes_dir, "~/Documents/Slugline");
         assert_eq!(cfg.ui.theme, "light");
         assert_eq!(cfg.ui.font, "Roboto");
         assert!((cfg.ui.edit_line_position - 0.5).abs() < f32::EPSILON);
@@ -180,9 +160,8 @@ mod tests {
     #[test]
     fn parses_overrides() {
         let toml = r##"
-            [server]
-            port = 9000
-            auto_open = false
+            [notes]
+            notes_dir = "/tmp/my-notes"
 
             [ui]
             theme = "dark"
@@ -191,8 +170,7 @@ mod tests {
             "--bg" = "#101018"
         "##;
         let cfg = Config::from_toml(toml).unwrap();
-        assert_eq!(cfg.server.port, 9000);
-        assert!(!cfg.server.auto_open);
+        assert_eq!(cfg.notes.notes_dir, "/tmp/my-notes");
         assert_eq!(cfg.ui.theme, "dark");
         assert_eq!(cfg.ui.colors["dark"]["--bg"], "#101018");
     }
@@ -215,11 +193,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nested").join("config.toml");
         let cfg = load_or_create(&path).unwrap();
-        assert_eq!(cfg.server.port, 4747);
+        assert_eq!(cfg.notes.notes_dir, "~/Documents/Slugline");
         assert!(path.exists());
         // Second load reads the file back.
         let again = load_or_create(&path).unwrap();
-        assert_eq!(again.server.port, 4747);
+        assert_eq!(again.notes.notes_dir, "~/Documents/Slugline");
     }
 
     #[test]
@@ -253,19 +231,11 @@ mod tests {
     }
 
     #[test]
-    fn read_ui_defaults_on_missing_file() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("absent.toml");
-        let ui = read_ui(&path);
-        assert_eq!(ui.theme, "light");
-    }
-
-    #[test]
     fn update_theme_no_panic_when_ui_section_absent() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("config.toml");
         // File exists but has no [ui] section — previously would panic.
-        fs::write(&path, "[server]\nport = 9000\n").unwrap();
+        fs::write(&path, "[notes]\nnotes_dir = \"/tmp/x\"\n").unwrap();
         update_theme(&path, "dark").unwrap();
         let cfg = load_or_create(&path).unwrap();
         assert_eq!(cfg.ui.theme, "dark");

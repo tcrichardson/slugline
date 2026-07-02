@@ -24,7 +24,7 @@ pub fn resolve(cli: &Cli, config: &Config) -> Resolved {
         notes_dir: cli
             .notes_dir
             .clone()
-            .unwrap_or_else(|| expand_tilde(&config.server.notes_dir)),
+            .unwrap_or_else(|| expand_tilde(&config.notes.notes_dir)),
     }
 }
 
