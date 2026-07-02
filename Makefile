@@ -1,32 +1,22 @@
-.PHONY: dev run test test-web fmt fmt-web build dev-web dist
+.PHONY: run dev test fmt build dist
 
-# Run the backend (serves the embedded SPA + API)
+# Run the app with the default notes directory (~/Documents/Slugline).
 run:
-	cargo run
+	cargo run -p slugline
 
-# Backend dev with a throwaway notes dir and no browser auto-open
+# Run with a throwaway notes dir, for local development.
 dev:
-	cargo run -- --notes-dir ./dev-notes --no-open
+	cargo run -p slugline -- --notes-dir ./dev-notes
 
 test:
-	cargo test
-
-test-web:
-	cd web && npm test
+	cargo test --workspace
 
 fmt:
 	cargo fmt
 
-fmt-web:
-	cd web && npx prettier --write "src/**/*.{ts,svelte}"
-
-dev-web:
-	cd web && npm run dev
-
-# Production build: frontend bundle (Vite default outDir is web/dist) then release binary
+# Production build: a single self-contained release binary.
 build:
-	cd web && npm run build
-	cargo build --release
+	cargo build --release -p slugline
 
 dist: build
 	@echo "Built single binary:"
