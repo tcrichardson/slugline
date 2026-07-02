@@ -491,7 +491,7 @@ impl App {
     pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             keyboard::on_key_press(|key, mods| {
-                let k = key_string(&key)?;
+                let k = key_string(&key, &mods)?;
                 if (mods.control() || mods.logo()) && (k == "k" || k == "K") {
                     return Some(Message::OpenPalette);
                 }
