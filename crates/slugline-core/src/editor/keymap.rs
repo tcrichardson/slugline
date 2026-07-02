@@ -1,3 +1,4 @@
+use super::commands::{CommandCtx, run_command};
 use super::state::{EditorState, Mode, Pending};
 use super::{edits, insert, motions, state};
 
@@ -46,12 +47,50 @@ fn state_effect(state: EditorState, effect: AppEffect) -> KeyResult {
     }
 }
 
-pub fn handle_key(state: &EditorState, key: &KeyInput) -> KeyResult {
-    // Phase 1: command mode (`:`) is never entered; it is added in Phase 5.
+pub fn handle_key(state: &EditorState, key: &KeyInput, ctx: &CommandCtx) -> KeyResult {
+    if state.command.is_some() {
+        return handle_command_mode(state, key, ctx);
+    }
     if state.mode == Mode::Insert {
         return state_only(handle_insert(state, key));
     }
     handle_normal(state, key)
+}
+
+fn handle_command_mode(state: &EditorState, key: &KeyInput, ctx: &CommandCtx) -> KeyResult {
+    match key.key.as_str() {
+        "Escape" => {
+            let mut ns = state.clone();
+            ns.command = None;
+            ns.message = String::new();
+            state_only(ns)
+        }
+        "Enter" => {
+            let result = run_command(state, ctx);
+            KeyResult {
+                state: result.state,
+                effect: result.effect,
+            }
+        }
+        "Backspace" => {
+            let mut ns = state.clone();
+            let mut typed = ns.command.unwrap_or_default();
+            typed.pop();
+            ns.command = Some(typed);
+            state_only(ns)
+        }
+        _ => {
+            if key.key.chars().count() == 1 && !key.ctrl && !key.meta {
+                let mut ns = state.clone();
+                let mut typed = ns.command.unwrap_or_default();
+                typed.push_str(&key.key);
+                ns.command = Some(typed);
+                state_only(ns)
+            } else {
+                state_only(state.clone())
+            }
+        }
+    }
 }
 
 fn handle_insert(s: &EditorState, k: &KeyInput) -> EditorState {
@@ -145,7 +184,12 @@ fn handle_normal(s: &EditorState, k: &KeyInput) -> KeyResult {
         "o" => insert::open_below(s),
         "O" => insert::open_above(s),
         "Enter" => motions::move_down(s),
-        // ":" command mode is deferred to Phase 5.
+        ":" => {
+            let mut ns = s.clone();
+            ns.command = Some(String::new());
+            ns.message = String::new();
+            ns
+        }
         _ => {
             if k.ctrl && (k.key == "r" || k.key == "R") {
                 state::redo(s)
@@ -171,29 +215,35 @@ mod tests {
         }
     }
 
+    fn ctx() -> CommandCtx {
+        CommandCtx {
+            now_hhmm: "09:30".to_string(),
+        }
+    }
+
     #[test]
     fn i_enters_insert_then_typing_inserts() {
         let s = create_editor_state(vec!["ac".into()], vec![]);
-        let s = handle_key(&s, &key("i")).state;
+        let s = handle_key(&s, &key("i"), &ctx()).state;
         assert_eq!(s.mode, Mode::Insert);
-        let s = handle_key(&s, &key("x")).state;
+        let s = handle_key(&s, &key("x"), &ctx()).state;
         assert_eq!(s.lines, vec!["xac".to_string()]);
     }
 
     #[test]
     fn dd_requires_two_keystrokes() {
         let s = create_editor_state(vec!["one".into(), "two".into()], vec![]);
-        let s = handle_key(&s, &key("d")).state;
+        let s = handle_key(&s, &key("d"), &ctx()).state;
         assert_eq!(s.pending, Pending::D);
-        let s = handle_key(&s, &key("d")).state;
+        let s = handle_key(&s, &key("d"), &ctx()).state;
         assert_eq!(s.lines, vec!["two".to_string()]);
     }
 
     #[test]
     fn ctrl_r_redoes() {
         let mut s = create_editor_state(vec!["a".into()], vec![]);
-        s = handle_key(&s, &key("x")).state; // delete 'a' (pushes undo)
-        s = handle_key(&s, &key("u")).state; // undo
+        s = handle_key(&s, &key("x"), &ctx()).state; // delete 'a' (pushes undo)
+        s = handle_key(&s, &key("u"), &ctx()).state; // undo
         assert_eq!(s.lines, vec!["a".to_string()]);
         let r = handle_key(
             &s,
@@ -203,6 +253,7 @@ mod tests {
                 meta: false,
                 shift: false,
             },
+            &ctx(),
         )
         .state;
         assert_eq!(r.lines, vec![String::new()]);
@@ -213,18 +264,18 @@ mod tests {
     #[test]
     fn j_moves_down_in_normal_mode() {
         let s = create_editor_state(vec!["a".into(), "b".into()], vec![]);
-        let r = handle_key(&s, &key("j")).state;
+        let r = handle_key(&s, &key("j"), &ctx()).state;
         assert_eq!(r.cursor.line, 1);
     }
 
     #[test]
     fn escape_exits_insert_mode() {
         let s = create_editor_state(vec!["".into()], vec![]);
-        let s = handle_key(&s, &key("i")).state;
+        let s = handle_key(&s, &key("i"), &ctx()).state;
         assert_eq!(s.mode, Mode::Insert);
-        let s = handle_key(&s, &key("x")).state;
+        let s = handle_key(&s, &key("x"), &ctx()).state;
         assert_eq!(s.lines, vec!["x".to_string()]);
-        let s = handle_key(&s, &key("Escape")).state;
+        let s = handle_key(&s, &key("Escape"), &ctx()).state;
         assert_eq!(s.mode, Mode::Normal);
     }
 
@@ -232,8 +283,8 @@ mod tests {
     fn gg_jumps_to_first_line() {
         let mut s = create_editor_state(vec!["a".into(), "b".into(), "c".into()], vec![]);
         s.cursor = Cursor { line: 2, col: 0 };
-        let s = handle_key(&s, &key("g")).state;
-        let s = handle_key(&s, &key("g")).state;
+        let s = handle_key(&s, &key("g"), &ctx()).state;
+        let s = handle_key(&s, &key("g"), &ctx()).state;
         assert_eq!(s.cursor.line, 0);
     }
 
@@ -242,22 +293,34 @@ mod tests {
     #[test]
     fn gt_emits_tab_next_effect() {
         let s = create_editor_state(vec!["a".into()], vec![]);
-        let s = handle_key(&s, &key("g")).state;
-        assert_eq!(handle_key(&s, &key("t")).effect, Some(AppEffect::TabNext));
+        let s = handle_key(&s, &key("g"), &ctx()).state;
+        assert_eq!(
+            handle_key(&s, &key("t"), &ctx()).effect,
+            Some(AppEffect::TabNext)
+        );
     }
 
     #[test]
     fn shift_gt_emits_tab_prev_effect() {
         let s = create_editor_state(vec!["a".into()], vec![]);
-        let s = handle_key(&s, &key("g")).state;
-        assert_eq!(handle_key(&s, &key("T")).effect, Some(AppEffect::TabPrev));
+        let s = handle_key(&s, &key("g"), &ctx()).state;
+        assert_eq!(
+            handle_key(&s, &key("T"), &ctx()).effect,
+            Some(AppEffect::TabPrev)
+        );
     }
 
     #[test]
     fn bracket_keys_emit_day_navigation() {
         let s = create_editor_state(vec!["a".into()], vec![]);
-        assert_eq!(handle_key(&s, &key("[")).effect, Some(AppEffect::PrevDay));
-        assert_eq!(handle_key(&s, &key("]")).effect, Some(AppEffect::NextDay));
+        assert_eq!(
+            handle_key(&s, &key("["), &ctx()).effect,
+            Some(AppEffect::PrevDay)
+        );
+        assert_eq!(
+            handle_key(&s, &key("]"), &ctx()).effect,
+            Some(AppEffect::NextDay)
+        );
     }
 
     #[test]
@@ -271,11 +334,51 @@ mod tests {
                 meta: false,
                 shift: false,
             },
+            &ctx(),
         );
         assert_eq!(r.effect, Some(AppEffect::Today));
     }
 
-    // TODO(phase 5): command mode (`:`) tests — deferred to Phase 5
+    // Ported from web/src/lib/editor/keymap.test.ts — command mode.
+
+    #[test]
+    fn colon_opens_the_command_line_and_enter_runs_it() {
+        let s = create_editor_state(
+            vec!["# T".into(), "".into(), "## To Do".into(), "".into()],
+            vec![],
+        );
+        let s = handle_key(&s, &key(":"), &ctx()).state;
+        assert_eq!(s.command, Some(String::new()));
+        let mut s = s;
+        for ch in ["t", "o", "d", "o", " ", "m"] {
+            s = handle_key(&s, &key(ch), &ctx()).state;
+        }
+        let r = handle_key(&s, &key("Enter"), &ctx());
+        assert!(r.state.lines.contains(&"- [ ] m".to_string()));
+        assert_eq!(r.state.command, None);
+    }
+
+    #[test]
+    fn escape_in_command_mode_clears_the_command_without_running_it() {
+        let mut s = create_editor_state(vec!["a".into()], vec![]);
+        s = handle_key(&s, &key(":"), &ctx()).state;
+        s = handle_key(&s, &key("x"), &ctx()).state;
+        assert_eq!(s.command, Some("x".to_string()));
+        let s = handle_key(&s, &key("Escape"), &ctx()).state;
+        assert_eq!(s.command, None);
+        assert_eq!(s.lines, vec!["a".to_string()]); // untouched
+    }
+
+    #[test]
+    fn backspace_in_command_mode_shortens_the_typed_text() {
+        let mut s = create_editor_state(vec!["a".into()], vec![]);
+        s = handle_key(&s, &key(":"), &ctx()).state;
+        s = handle_key(&s, &key("t"), &ctx()).state;
+        s = handle_key(&s, &key("o"), &ctx()).state;
+        assert_eq!(s.command, Some("to".to_string()));
+        let s = handle_key(&s, &key("Backspace"), &ctx()).state;
+        assert_eq!(s.command, Some("t".to_string()));
+    }
 
     // Review flag: keymap.ts:137-138 maps Escape in NORMAL mode to enterInsert(...).
     // This looks like a latent bug and is deliberately NOT replicated here.
