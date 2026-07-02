@@ -576,6 +576,7 @@ impl App {
         column![
             tab_strip::view(&self.tabs, &self.palette),
             editor_pane::view(&self.editor, &self.palette),
+            status_line::view(&self.editor, &self.palette),
         ]
         .into()
     }
