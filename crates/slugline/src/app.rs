@@ -134,6 +134,8 @@ pub enum Message {
         prev: String,
         res: Result<(), String>,
     },
+    /// The error toast's dismiss (×) button was clicked.
+    DismissError,
 }
 
 /// Pure: shift a calendar month by `delta` months (may be negative), rolling over years.
@@ -390,6 +392,10 @@ impl App {
                 }
             }
             Message::Tick => {
+                if self.error_expires_at.is_some_and(|t| Instant::now() >= t) {
+                    self.error = None;
+                    self.error_expires_at = None;
+                }
                 if self.loading || self.saving {
                     return Task::none();
                 }
@@ -532,6 +538,11 @@ impl App {
                 }
                 Task::none()
             }
+            Message::DismissError => {
+                self.error = None;
+                self.error_expires_at = None;
+                Task::none()
+            }
         }
     }
 
@@ -569,7 +580,13 @@ impl App {
             Some(typed) => stack![base, command_palette::view(typed, &self.palette)].into(),
             None => base,
         };
-        with_palette
+
+        // The error toast (design Section 6): floats on top of everything, including the
+        // command palette, whenever `error.is_some()`.
+        match &self.error {
+            Some(message) => stack![with_palette, toast::view(message)].into(),
+            None => with_palette,
+        }
     }
 
     fn main_pane(&self) -> Element<'_, Message> {
@@ -984,5 +1001,28 @@ mod tests {
             res: Err("disk full".to_string()),
         });
         assert_eq!(app.theme, "light"); // untouched by the stale rollback
+    }
+
+    #[test]
+    fn dismiss_error_clears_the_error_and_its_expiry() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        app.set_error("boom".to_string());
+        assert!(app.error.is_some());
+        let _ = app.update(Message::DismissError);
+        assert_eq!(app.error, None);
+        assert_eq!(app.error_expires_at, None);
+    }
+
+    #[test]
+    fn tick_clears_an_expired_error_but_leaves_a_fresh_one() {
+        let (_dir, mut app) = temp_app("2026-06-23");
+        app.set_error("boom".to_string());
+        app.error_expires_at = Some(Instant::now() - Duration::from_secs(1)); // already expired
+        let _ = app.update(Message::Tick);
+        assert_eq!(app.error, None);
+
+        app.set_error("fresh".to_string());
+        let _ = app.update(Message::Tick);
+        assert_eq!(app.error, Some("fresh".to_string())); // not expired yet
     }
 }
