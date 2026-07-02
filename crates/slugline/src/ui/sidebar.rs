@@ -5,6 +5,7 @@ use slugline_core::dates::YearMonth;
 use slugline_core::todos::TodoGroup;
 
 use crate::app::Message;
+use crate::theme_iced::Palette;
 use crate::ui::{agenda, calendar, todo_list};
 
 /// The sidebar pane: a collapse header followed by the calendar, agenda, and to-do
@@ -17,6 +18,7 @@ pub fn view<'a>(
     notes_with_files: &[String],
     lines: &[String],
     todo_groups: &[TodoGroup],
+    palette: &Palette,
 ) -> Element<'a, Message> {
     let header = row![
         container(text("Slugline").size(13)).width(Length::Fill),
@@ -28,9 +30,9 @@ pub fn view<'a>(
     .padding([8, 10]);
 
     let body = column![
-        calendar::view(calendar_month, today, active, notes_with_files),
-        agenda::view(lines, active),
-        todo_list::view(todo_groups),
+        calendar::view(calendar_month, today, active, notes_with_files, palette),
+        agenda::view(lines, active, palette),
+        todo_list::view(todo_groups, palette),
     ]
     .width(Length::Fill);
 

@@ -33,11 +33,17 @@ pub fn main() -> iced::Result {
 
     let store = NotesStore::new(resolved.notes_dir);
     let date = today_iso();
+    let ui_config = config.ui;
 
     iced::application(App::title, App::update, App::view)
         .subscription(App::subscription)
         .run_with(move || {
-            let app = App::new(store.clone(), date.clone());
+            let app = App::new(
+                store.clone(),
+                date.clone(),
+                ui_config.clone(),
+                config_path.clone(),
+            );
             let boot = app.boot();
             (app, boot)
         })

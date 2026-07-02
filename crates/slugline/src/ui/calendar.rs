@@ -4,7 +4,7 @@ use iced::{Alignment, Element, Length};
 use slugline_core::dates::{MonthCell, YearMonth, month_grid};
 
 use crate::app::Message;
-use crate::ui::palette;
+use crate::theme_iced::Palette;
 
 const DOW: [&str; 7] = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTH_NAMES: [&str; 12] = [
@@ -32,6 +32,7 @@ pub fn view<'a>(
     today: &str,
     active: &str,
     notes_with_files: &[String],
+    palette: &Palette,
 ) -> Element<'a, Message> {
     let header = row![
         button(text("\u{2039}").size(14))
@@ -47,7 +48,7 @@ pub fn view<'a>(
     let mut dow_row = row![].spacing(2);
     for d in DOW {
         dow_row = dow_row
-            .push(container(text(d).size(11).color(palette::MUTED)).center_x(Length::Fixed(CELL)));
+            .push(container(text(d).size(11).color(palette.muted)).center_x(Length::Fixed(CELL)));
     }
 
     let mut grid = column![dow_row].spacing(2);
@@ -55,7 +56,7 @@ pub fn view<'a>(
         let mut wk = row![].spacing(2);
         for cell in &week {
             let has_note = notes_with_files.iter().any(|d| d == &cell.date);
-            wk = wk.push(day_cell(cell, today, active, has_note));
+            wk = wk.push(day_cell(cell, today, active, has_note, palette));
         }
         grid = grid.push(wk);
     }
@@ -68,6 +69,7 @@ fn day_cell<'a>(
     today: &str,
     active: &str,
     has_note: bool,
+    palette: &Palette,
 ) -> Element<'a, Message> {
     let day_num = cell.date[8..10].trim_start_matches('0').to_string();
     let day_num = if day_num.is_empty() {
@@ -78,6 +80,7 @@ fn day_cell<'a>(
     let is_today = cell.date == today;
     let is_selected = cell.date == active;
     let in_month = cell.in_month;
+    let palette = *palette;
 
     let dot = text(if has_note { "\u{2022}" } else { " " }).size(9);
     let label = column![text(day_num).size(12), dot].align_x(Alignment::Center);
@@ -89,25 +92,25 @@ fn day_cell<'a>(
         .on_press(Message::OpenDate(cell.date.clone()))
         .style(move |_theme, status| {
             let background = if is_selected {
-                Some(palette::ACCENT.into())
+                Some(palette.accent.into())
             } else if status == button::Status::Hovered {
-                Some(palette::EDIT_BAR_BG.into())
+                Some(palette.edit_bar_bg.into())
             } else {
                 None
             };
             let text_color = if is_selected {
-                palette::BG
+                palette.bg
             } else if !in_month {
-                palette::MUTED
+                palette.muted
             } else {
-                palette::FG
+                palette.fg
             };
             button::Style {
                 background,
                 text_color,
                 border: iced::Border {
                     color: if is_today {
-                        palette::ACCENT
+                        palette.accent
                     } else {
                         iced::Color::TRANSPARENT
                     },

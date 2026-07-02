@@ -6,7 +6,7 @@ use iced::{Element, Font, Length};
 use slugline_core::doc::{ArgKind, COMMANDS, CommandSpec};
 
 use crate::app::Message;
-use crate::ui::palette;
+use crate::theme_iced::Palette;
 
 const MONO: Font = Font::MONOSPACE;
 const MAX_SUGGESTIONS: usize = 8;
@@ -50,9 +50,7 @@ fn description(spec: &CommandSpec) -> &'static str {
 /// order (not necessarily contiguous); returns `None` if it doesn't. Higher scores are
 /// better: matches earlier in `target` and consecutive runs of matched characters score
 /// higher. An empty `query` matches everything with a score of `0` (used to show every
-/// command when nothing has been typed yet). No TS counterpart — the command palette is
-/// new native-refined UI (design Section 4); this is a fresh implementation with fresh
-/// tests, same rationale as Phase 3/4's `shift_month`/7-day-aggregation tests.
+/// command when nothing has been typed yet).
 pub fn fuzzy_score(query: &str, target: &str) -> Option<i32> {
     if query.is_empty() {
         return Some(0);
@@ -102,26 +100,26 @@ pub fn filter_commands(query: &str) -> Vec<&'static CommandSpec> {
 
 /// The command palette overlay: a top-centered box with the typed `:command` text and a
 /// fuzzy-filtered list of known commands below it. Rendered in a `stack!` on top of the
-/// base view whenever `editor.command.is_some()` (design Section 4). Clicking a
-/// suggestion seeds the command buffer with that command's name
-/// (`Message::PaletteSuggestionClicked`); `Enter` always runs whatever is currently typed
-/// through the same `run_command` path as typing `:cmd` directly — this overlay only ever
-/// edits `editor.command`, never runs a command itself.
-pub fn view<'a>(typed: &str) -> Element<'a, Message> {
+/// base view whenever `editor.command.is_some()` (design Section 4).
+pub fn view<'a>(typed: &str, palette: &Palette) -> Element<'a, Message> {
     let suggestions = filter_commands(typed);
+    let edit_bar_bg = palette.edit_bar_bg;
+    let rule = palette.rule;
+    let bg = palette.bg;
+    let status_bar = palette.status_bar;
 
     let input = container(
         text(format!(":{typed}"))
             .font(MONO)
             .size(15)
-            .color(palette::FG),
+            .color(palette.fg),
     )
     .padding([8, 12])
     .width(Length::Fill)
-    .style(|_theme| container::Style {
-        background: Some(palette::EDIT_BAR_BG.into()),
+    .style(move |_theme| container::Style {
+        background: Some(edit_bar_bg.into()),
         border: iced::Border {
-            color: palette::RULE,
+            color: rule,
             width: 1.0,
             radius: 4.0.into(),
         },
@@ -131,20 +129,20 @@ pub fn view<'a>(typed: &str) -> Element<'a, Message> {
     let mut list = column![].spacing(1);
     if suggestions.is_empty() {
         list = list.push(
-            container(text("No matching commands").size(12).color(palette::MUTED)).padding([4, 8]),
+            container(text("No matching commands").size(12).color(palette.muted)).padding([4, 8]),
         );
     } else {
         for spec in suggestions {
-            list = list.push(suggestion_row(spec));
+            list = list.push(suggestion_row(spec, palette));
         }
     }
 
     let box_ = container(column![input, list].spacing(6).width(Length::Fixed(440.0)))
         .padding(12)
-        .style(|_theme| container::Style {
-            background: Some(palette::BG.into()),
+        .style(move |_theme| container::Style {
+            background: Some(bg.into()),
             border: iced::Border {
-                color: palette::STATUS_BAR,
+                color: status_bar,
                 width: 1.0,
                 radius: 8.0.into(),
             },
@@ -168,8 +166,12 @@ pub fn view<'a>(typed: &str) -> Element<'a, Message> {
         .into()
 }
 
-fn suggestion_row<'a>(spec: &'static CommandSpec) -> Element<'a, Message> {
+fn suggestion_row<'a>(spec: &'static CommandSpec, palette: &Palette) -> Element<'a, Message> {
     let name = spec.name.canonical();
+    let accent = palette.accent;
+    let muted = palette.muted;
+    let fg = palette.fg;
+    let edit_bar_bg = palette.edit_bar_bg;
     let label = row![
         text(format!(":{name}{}", usage_hint(spec)))
             .font(Font {
@@ -177,8 +179,8 @@ fn suggestion_row<'a>(spec: &'static CommandSpec) -> Element<'a, Message> {
                 ..MONO
             })
             .size(12)
-            .color(palette::ACCENT),
-        text(description(spec)).size(12).color(palette::MUTED),
+            .color(accent),
+        text(description(spec)).size(12).color(muted),
     ]
     .spacing(10);
 
@@ -186,15 +188,15 @@ fn suggestion_row<'a>(spec: &'static CommandSpec) -> Element<'a, Message> {
         .padding([3, 8])
         .width(Length::Fill)
         .on_press(Message::PaletteSuggestionClicked(name.to_string()))
-        .style(|_theme, status| {
+        .style(move |_theme, status| {
             let background = if status == button::Status::Hovered {
-                Some(palette::EDIT_BAR_BG.into())
+                Some(edit_bar_bg.into())
             } else {
                 None
             };
             button::Style {
                 background,
-                text_color: palette::FG,
+                text_color: fg,
                 border: iced::Border::default(),
                 shadow: iced::Shadow::default(),
             }

@@ -1,8 +1,10 @@
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use iced::widget::{column, pane_grid, row, stack};
 use iced::{Element, Length, Subscription, Task, keyboard, time, window};
 
+use slugline_core::config::{UiConfig, update_theme};
 use slugline_core::dates::{YearMonth, add_days, now_hhmm, today_iso, year_month};
 use slugline_core::editor::{
     AppEffect, CommandCtx, Cursor, EditorState, KeyInput, clamp_cursor, create_editor_state,
@@ -12,14 +14,19 @@ use slugline_core::store::NotesStore;
 use slugline_core::tabs::{
     TabsState, active_date, close_tab, init_tabs, next_tab, open_new_tab, prev_tab, retarget,
 };
+use slugline_core::theme::Tokens;
 use slugline_core::todos::{TodoGroup, extract_todos, window_dates};
 
 use crate::keys::key_string;
-use crate::ui::{command_palette, editor_pane, sidebar, tab_strip};
+use crate::theme_iced::Palette;
+use crate::ui::{command_palette, editor_pane, sidebar, status_line, tab_strip, toast};
 
 const SAVE_DEBOUNCE: Duration = Duration::from_millis(750);
 /// The sidebar's share of the window width when the app starts.
 const INITIAL_SIDEBAR_RATIO: f32 = 0.22;
+/// How long an error toast stays visible before auto-dismissing. Matches the web's
+/// `Toast`/`setError` auto-dismiss window (design Section 6).
+const ERROR_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The two top-level panes of the shell's `pane_grid` (design Section 4: "Layout via
 /// `pane_grid`"). There is only ever this one fixed split — no user-driven splitting.
@@ -60,8 +67,22 @@ pub struct App {
     panes: pane_grid::State<PaneKind>,
     /// True when the whole sidebar is collapsed to a slim rail.
     sidebar_collapsed: bool,
-    #[allow(dead_code)]
+    /// Where `:theme` persists (`update_theme`). Set once at startup from the CLI/config
+    /// resolution in `main.rs`; never changes for the process's lifetime.
+    config_path: PathBuf,
+    /// The active theme name (`"light"` or `"dark"`), applied optimistically on `:theme`
+    /// before the persistence `Task` resolves.
+    theme: String,
+    /// Per-theme color overrides from config (`ui.colors`), merged over the built-ins by
+    /// `Palette::for_theme`.
+    color_overrides: std::collections::BTreeMap<String, Tokens>,
+    /// The current theme's tokens, resolved to Iced colors. Recomputed only when `theme`
+    /// changes (boot + every `:theme`), not on every `view()` call.
+    palette: Palette,
     error: Option<String>,
+    /// When the current `error` should auto-dismiss (design Section 6: 5s, mirrors the
+    /// web's `Toast`/`setError`). `None` whenever `error` is `None`.
+    error_expires_at: Option<Instant>,
 }
 
 #[derive(Debug, Clone)]
@@ -147,7 +168,7 @@ fn plan_tabs(tabs: &TabsState, active: &str, today: &str, effect: &AppEffect) ->
 }
 
 impl App {
-    pub fn new(store: NotesStore, date: String) -> Self {
+    pub fn new(store: NotesStore, date: String, ui_config: UiConfig, config_path: PathBuf) -> Self {
         let (content, error) = match store.read_or_create(&date) {
             Ok(c) => (c, None),
             Err(e) => (String::new(), Some(format!("Failed to load note: {e}"))),
@@ -159,6 +180,10 @@ impl App {
             a: Box::new(pane_grid::Configuration::Pane(PaneKind::Sidebar)),
             b: Box::new(pane_grid::Configuration::Pane(PaneKind::Main)),
         });
+        let theme = ui_config.theme;
+        let color_overrides = ui_config.colors;
+        let palette = Palette::for_theme(&theme, &color_overrides);
+        let error_expires_at = error.as_ref().map(|_| Instant::now() + ERROR_TIMEOUT);
         Self {
             store,
             tabs: init_tabs(&date),
@@ -174,7 +199,12 @@ impl App {
             pending_jump_line: None,
             panes,
             sidebar_collapsed: false,
+            config_path,
+            theme,
+            color_overrides,
+            palette,
             error,
+            error_expires_at,
         }
     }
 
@@ -465,6 +495,7 @@ impl App {
                         &self.notes_with_files,
                         &self.editor.lines,
                         &self.todo_groups,
+                        &self.palette,
                     ),
                     PaneKind::Main => self.main_pane(),
                 })
@@ -478,14 +509,19 @@ impl App {
         // The command palette overlay (design Section 4): floats on top of everything
         // else whenever command mode is active (`:` or Cmd/Ctrl-K), and disappears the
         // instant `editor.command` goes back to `None` (Escape, or Enter via `run_command`).
-        match &self.editor.command {
-            Some(typed) => stack![base, command_palette::view(typed)].into(),
+        let with_palette: Element<'_, Message> = match &self.editor.command {
+            Some(typed) => stack![base, command_palette::view(typed, &self.palette)].into(),
             None => base,
-        }
+        };
+        with_palette
     }
 
     fn main_pane(&self) -> Element<'_, Message> {
-        column![tab_strip::view(&self.tabs), editor_pane::view(&self.editor)].into()
+        column![
+            tab_strip::view(&self.tabs, &self.palette),
+            editor_pane::view(&self.editor, &self.palette),
+        ]
+        .into()
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -516,7 +552,8 @@ mod tests {
     fn temp_app(date: &str) -> (tempfile::TempDir, App) {
         let dir = tempfile::tempdir().unwrap();
         let store = NotesStore::new(dir.path().to_path_buf());
-        let app = App::new(store, date.to_string());
+        let config_path = dir.path().join("config.toml");
+        let app = App::new(store, date.to_string(), UiConfig::default(), config_path);
         (dir, app)
     }
 
